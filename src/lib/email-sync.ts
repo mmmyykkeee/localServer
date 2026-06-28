@@ -92,6 +92,16 @@ export async function syncEmailReplies() {
         if (isDeleted) continue;
       }
 
+      const cleanedContent = body
+        .replace(/^>\s?/gm, "")
+        .replace(/\n>\s?/g, "\n")
+        .replace(/On (?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),? \d{1,2} \w+ \d{4} at \d{1,2}:\d{2} [AP]M,?.*wrote:[\s\S]*$/, "")
+        .replace(/On \d{1,2}\/\d{1,2}\/\d{4},? .*wrote:[\s\S]*$/, "")
+        .replace(/On \w+ \d{1,2},? \d{4},? at \d{1,2}:\d{2}.*wrote:[\s\S]*$/, "")
+        .replace(/_{3,}/g, "")
+        .replace(/-{3,}/g, "")
+        .trim();
+
       await prisma.message.create({
         data: {
           leadId,
@@ -99,7 +109,7 @@ export async function syncEmailReplies() {
           from: fromEmail,
           to: imapUser || "",
           subject: parsed.subject || "",
-          content: body.replace(/^>\s?/gm, "").replace(/\n>\s?/g, "\n").trim(),
+          content: cleanedContent,
           messageId: messageId || null,
         },
       });
