@@ -166,6 +166,7 @@ export default function LeadsClient({
   const [replyContent, setReplyContent] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set(Object.keys(unreadCounts).map(Number)));
+  const [localLeads, setLocalLeads] = useState<Lead[]>(leads);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "no-replies" | "caught">("idle");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -243,7 +244,7 @@ export default function LeadsClient({
         params.delete("q");
       }
       if (expandedId) {
-        const expandedLead = leads.find((l) => l.id === expandedId);
+        const expandedLead = localLeads.find((l) => l.id === expandedId);
         const slug = expandedLead ? (expandedLead.company || expandedLead.name || String(expandedId)).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : String(expandedId);
         params.set("expanded", slug);
       } else {
@@ -265,7 +266,7 @@ export default function LeadsClient({
         setExpandedId(byId);
         fetchDrafts(byId);
       } else {
-        const match = leads.find((l) => {
+        const match = localLeads.find((l) => {
           const slug = (l.company || l.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
           return slug === expandedParam;
         });
@@ -292,7 +293,7 @@ export default function LeadsClient({
 
   const filteredLeads = useMemo(() => {
     if (!searchQuery) return leads;
-    return leads.filter((lead) =>
+    return localLeads.filter((lead) =>
       [lead.name, lead.company, lead.email, lead.website, lead.phone].some(
         (f) => f?.toLowerCase().includes(searchQuery)
       )
@@ -353,7 +354,7 @@ export default function LeadsClient({
   };
 
   const selectAll = () => {
-    const visibleIds = leads.filter((l) => !nonMatchingIds.has(l.id)).map((l) => l.id);
+    const visibleIds = localLeads.filter((l) => !nonMatchingIds.has(l.id)).map((l) => l.id);
     if (visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set());
     } else {
@@ -390,7 +391,7 @@ export default function LeadsClient({
   };
 
   const handleBulkEnrich = async () => {
-    const toEnrich = leads.filter((l) => selectedIds.has(l.id) && l.website);
+    const toEnrich = localLeads.filter((l) => selectedIds.has(l.id) && l.website);
     if (toEnrich.length === 0) {
       toast("No leads with websites selected", "error");
       return;
@@ -487,8 +488,8 @@ export default function LeadsClient({
       const res = await fetch("/api/leads/enrich", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: lead.id, website: lead.website }) });
       const data = await res.json();
       if (!data.error) {
+        setLocalLeads((prev) => prev.map((l) => l.id === lead.id ? { ...l, enriched: JSON.stringify(data), email: l.email || data.emails?.[0] || null, phone: l.phone || data.phones?.[0] || null } : l));
         toast("Lead enriched successfully");
-        refresh();
       } else {
         toast(data.error || "Enrichment failed", "error");
       }
@@ -751,7 +752,7 @@ export default function LeadsClient({
         {/* ─── Search + Add Lead ─── */}
         <div className="mb-8 flex items-center gap-3">
           {/* Select all checkbox */}
-          {leads.length > 0 && (
+          {localLeads.length > 0 && (
             <button
               onClick={selectAll}
               className={`w-4 h-4 shrink-0 rounded border transition-all duration-150 cursor-pointer flex items-center justify-center ${
@@ -926,7 +927,7 @@ export default function LeadsClient({
         {/* ─── Leads List ─── */}
         {isPending ? (
           <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}</div>
-        ) : leads.length === 0 ? (
+        ) : localLeads.length === 0 ? (
           /* ─── Empty State ─── */
           <div className="flex flex-col items-center justify-center py-24 px-4">
             <div className="relative mb-8">
@@ -979,7 +980,7 @@ export default function LeadsClient({
         ) : (
           /* ─── Lead Cards with inline editing ─── */
           <div className="space-y-2">
-            {leads.map((lead) => {
+            {localLeads.map((lead) => {
               const enriched = parseEnriched(lead.enriched);
               const isExpanded = expandedId === lead.id;
               const isEditing = editingLead?.id === lead.id;
