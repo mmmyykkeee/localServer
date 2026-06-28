@@ -1447,6 +1447,22 @@ export default function LeadsClient({
                     )}
                   </>
                 )}
+                <div className="flex gap-2 mt-4">
+                  {editingModalDraft ? (
+                    <>
+                      <button onClick={async () => { if (lastDraftId && emailDraft) { await fetch(`/api/leads/draft/${lastDraftId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: emailDraft }) }); toast("Draft updated"); } setEditingModalDraft(false); }} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 rounded-lg transition-all duration-200 cursor-pointer">Save</button>
+                      <button onClick={() => setEditingModalDraft(false)} className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-all duration-200 cursor-pointer">Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => setEditingModalDraft(true)} className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-all duration-200 cursor-pointer">Edit</button>
+                      <button onClick={async () => { setCopied(true); await navigator.clipboard.writeText(emailDraft || ""); if (lastDraftId) { await fetch(`/api/leads/draft/${lastDraftId}/use`, { method: "POST" }); } setTimeout(() => setCopied(false), 1500); }} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${copied ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"}`}>{copied ? <><TickIcon />Copied</> : "Copy"}</button>
+                      <button onClick={() => handleSendEmail(draftLead?.email || "", `Partnership Opportunity - Michaelsoft Procurement`, emailDraft || "", lastDraftId || undefined)} disabled={sendingEmail || !draftLead?.email} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${sentEmailId === lastDraftId ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-white dark:text-neutral-900 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600"} disabled:opacity-40`}>{sendingEmail ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Sending...</> : sentEmailId === lastDraftId ? <><TickIcon className="text-emerald-600 dark:text-emerald-400" />Sent</> : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>Send email</>}
+                      </button>
+                      <button onClick={() => handleGenerateEmail(draftLead)} disabled={generating === draftLead.id || regenerating} className="px-3 py-1.5 text-xs font-medium text-white dark:text-neutral-900 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 rounded-lg transition-colors duration-150 cursor-pointer disabled:opacity-40">Regenerate</button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
