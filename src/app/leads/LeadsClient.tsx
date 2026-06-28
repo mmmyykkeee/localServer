@@ -168,6 +168,7 @@ export default function LeadsClient({
   const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set(Object.keys(unreadCounts).map(Number)));
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "no-replies">("idle");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
   const [draftCopiedId, setDraftCopiedId] = useState<number | null>(null);
@@ -1274,9 +1275,16 @@ export default function LeadsClient({
                                       </span>
                                       <span className="text-neutral-400 dark:text-neutral-500">{msg.from}</span>
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                                      <button onClick={async () => { if (!confirm("Delete this message?")) return; await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); if (draftLead) await fetchDrafts(draftLead.id); }} className="opacity-0 group-hover:opacity-100 text-neutral-300 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all duration-150 cursor-pointer ml-1" title="Delete">
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                      </button>
+                                      {deleteConfirmId === msg.id ? (
+                                        <span className="inline-flex items-center gap-1 ml-1">
+                                          <button onClick={async () => { await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); if (draftLead) await fetchDrafts(draftLead.id); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
+                                          <button onClick={() => setDeleteConfirmId(null)} className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Cancel</button>
+                                        </span>
+                                      ) : (
+                                        <button onClick={() => setDeleteConfirmId(msg.id)} className="opacity-0 group-hover:opacity-100 text-neutral-300 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all duration-150 cursor-pointer ml-1" title="Delete">
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                      )}
                                     </div>
                                     {msg.subject && <p className="text-neutral-500 dark:text-neutral-400 mb-1">Re: {msg.subject}</p>}
                                     <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed">{msg.content}</p>
