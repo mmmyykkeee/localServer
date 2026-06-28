@@ -1223,11 +1223,14 @@ export default function LeadsClient({
                               {leadDrafts[lead.id].map((draft) => {
                                 const isDraftExpanded = expandedDraftId === draft.id;
                                 return (
-                                  <div key={draft.id} className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 text-xs">
+                                  <div key={draft.id} className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 text-xs group">
                                     <div className="flex items-center gap-2 mb-2">
                                       {draft.used && <span className="text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">Used</span>}
                                       {draft.tone && <span className="text-neutral-400 dark:text-neutral-500">{draft.tone}</span>}
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(draft.createdAt).toLocaleDateString()}</span>
+                                      <button onClick={async () => { if (!confirm("Delete this draft?")) return; await fetch(`/api/leads/draft/${draft.id}`, { method: "DELETE" }); if (draftLead) { setLeadDrafts((prev) => ({ ...prev, [draftLead.id]: (prev[draftLead.id] || []).filter((d) => d.id !== draft.id) })); } }} className="opacity-0 group-hover:opacity-100 text-neutral-300 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all duration-150 cursor-pointer" title="Delete draft">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                      </button>
                                     </div>
                                     <p className={`text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed ${isDraftExpanded ? "" : "line-clamp-4"}`}>{draft.content}</p>
                                     <div className="flex items-center gap-1.5 mt-2">
