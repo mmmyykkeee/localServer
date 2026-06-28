@@ -87,11 +87,6 @@ export async function syncEmailReplies() {
         : null;
       if (existingMessage) continue;
 
-      if (messageId) {
-        const isDeleted = await prisma.deletedMessage.findFirst({ where: { messageId } });
-        if (isDeleted) continue;
-      }
-
       await prisma.message.create({
         data: {
           leadId,
