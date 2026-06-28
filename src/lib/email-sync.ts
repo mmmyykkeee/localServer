@@ -94,7 +94,7 @@ export async function syncEmailReplies() {
           from: fromEmail,
           to: imapUser || "",
           subject: parsed.subject || "",
-          content: body.trim(),
+          content: body.replace(/^>\s?/gm, "").replace(/\n>\s?/g, "\n").trim(),
           messageId: messageId || null,
         },
       });
