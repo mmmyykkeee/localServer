@@ -386,7 +386,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   Lead: 'Lead',
   EmailDraft: 'EmailDraft',
-  Message: 'Message'
+  Message: 'Message',
+  DeletedMessage: 'DeletedMessage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -402,7 +403,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "lead" | "emailDraft" | "message"
+    modelProps: "lead" | "emailDraft" | "message" | "deletedMessage"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -628,6 +629,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    DeletedMessage: {
+      payload: Prisma.$DeletedMessagePayload<ExtArgs>
+      fields: Prisma.DeletedMessageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DeletedMessageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DeletedMessageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>
+        }
+        findFirst: {
+          args: Prisma.DeletedMessageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DeletedMessageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>
+        }
+        findMany: {
+          args: Prisma.DeletedMessageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>[]
+        }
+        create: {
+          args: Prisma.DeletedMessageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>
+        }
+        createMany: {
+          args: Prisma.DeletedMessageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DeletedMessageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>[]
+        }
+        delete: {
+          args: Prisma.DeletedMessageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>
+        }
+        update: {
+          args: Prisma.DeletedMessageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>
+        }
+        deleteMany: {
+          args: Prisma.DeletedMessageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DeletedMessageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DeletedMessageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>[]
+        }
+        upsert: {
+          args: Prisma.DeletedMessageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeletedMessagePayload>
+        }
+        aggregate: {
+          args: Prisma.DeletedMessageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDeletedMessage>
+        }
+        groupBy: {
+          args: Prisma.DeletedMessageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DeletedMessageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DeletedMessageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DeletedMessageCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -714,6 +789,15 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const DeletedMessageScalarFieldEnum = {
+  id: 'id',
+  messageId: 'messageId',
+  deletedAt: 'deletedAt'
+} as const
+
+export type DeletedMessageScalarFieldEnum = (typeof DeletedMessageScalarFieldEnum)[keyof typeof DeletedMessageScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -921,6 +1005,7 @@ export type GlobalOmitConfig = {
   lead?: Prisma.LeadOmit
   emailDraft?: Prisma.EmailDraftOmit
   message?: Prisma.MessageOmit
+  deletedMessage?: Prisma.DeletedMessageOmit
 }
 
 /* Types for Logging */

@@ -64,3 +64,11 @@ model Message {
   @@index([leadId])
   @@index([messageId])
 }
+
+model DeletedMessage {
+  id        Int      @id @default(autoincrement())
+  messageId String
+  deletedAt DateTime @default(now())
+
+  @@index([messageId])
+}

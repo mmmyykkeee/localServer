@@ -11,4 +11,5 @@
 export type * from './models/Lead'
 export type * from './models/EmailDraft'
 export type * from './models/Message'
+export type * from './models/DeletedMessage'
 export type * from './commonInputTypes'

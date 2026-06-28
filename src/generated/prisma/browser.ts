@@ -32,3 +32,8 @@ export type EmailDraft = Prisma.EmailDraftModel
  * 
  */
 export type Message = Prisma.MessageModel
+/**
+ * Model DeletedMessage
+ * 
+ */
+export type DeletedMessage = Prisma.DeletedMessageModel
