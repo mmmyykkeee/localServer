@@ -42,27 +42,20 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   ]);
 
   const leadIds = leads.map((l) => l.id);
-  const latestMessages = await prisma.message.groupBy({
-    by: ["leadId"],
-    where: { leadId: { in: leadIds } },
-    _max: { createdAt: true },
-  });
 
-  const latestMessageMap = new Map<number, Date>();
-  for (const m of latestMessages) {
-    if (m._max.createdAt) latestMessageMap.set(m.leadId, m._max.createdAt);
-  }
-
-  const unreadLeadIds = new Set<number>();
-  for (const lead of leads) {
-    const latestTime = latestMessageMap.get(lead.id);
-    if (!latestTime) continue;
+  const unreadCounts: Record<number, number> = {};
+  for (const leadId of leadIds) {
     const lastMsg = await prisma.message.findFirst({
-      where: { leadId: lead.id },
+      where: { leadId },
       orderBy: { createdAt: "desc" },
       select: { direction: true },
     });
-    if (lastMsg?.direction === "incoming") unreadLeadIds.add(lead.id);
+    if (lastMsg?.direction === "incoming") {
+      const incomingCount = await prisma.message.count({
+        where: { leadId, direction: "incoming" },
+      });
+      unreadCounts[leadId] = incomingCount;
+    }
   }
 
   return (
@@ -75,7 +68,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       currentPage={currentPage}
       pageSize={PAGE_SIZE}
       statusFilter={statusFilter}
-      unreadLeadIds={JSON.parse(JSON.stringify([...unreadLeadIds]))}
+      unreadCounts={unreadCounts}
     />
   );
 }

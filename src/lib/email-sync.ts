@@ -40,7 +40,8 @@ export async function syncEmailReplies() {
 
   await connection.openBox("INBOX");
 
-  const searchCriteria = ["UNSEEN"];
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const searchCriteria = ["ALL", ["SINCE", thirtyDaysAgo]];
   const fetchOptions = {
     bodies: [""],
     markSeen: false,

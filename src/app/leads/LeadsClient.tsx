@@ -131,7 +131,7 @@ export default function LeadsClient({
   currentPage = 1,
   pageSize = 8,
   statusFilter = "",
-  unreadLeadIds = [],
+  unreadCounts = {},
 }: {
   leads: Lead[];
   createLead: Action;
@@ -141,7 +141,7 @@ export default function LeadsClient({
   currentPage?: number;
   pageSize?: number;
   statusFilter?: string;
-  unreadLeadIds?: number[];
+  unreadCounts?: Record<number, number>;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -165,7 +165,7 @@ export default function LeadsClient({
   const [leadMessages, setLeadMessages] = useState<Record<number, Array<{ id: number; direction: string; from: string | null; to: string | null; subject: string | null; content: string; createdAt: string }>>>({});
   const [replyContent, setReplyContent] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
-  const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set(unreadLeadIds));
+  const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set(Object.keys(unreadCounts).map(Number)));
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "no-replies">("idle");
   const [copied, setCopied] = useState(false);
@@ -991,7 +991,7 @@ export default function LeadsClient({
               return (
                 <div
                   key={lead.id}
-                  className={`border rounded-xl transition-all duration-500 ease-out ${
+                  className={`relative border rounded-xl transition-all duration-500 ease-out ${
                     isHidden
                       ? "opacity-0 scale-y-95 max-h-0 overflow-hidden border-transparent pointer-events-none my-0"
                       : lead.status === "contacted"
@@ -1001,6 +1001,12 @@ export default function LeadsClient({
                       : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600"
                   } ${isEditing ? "" : "hover:border-neutral-300 dark:hover:border-neutral-600"}`}
                 >
+                  {/* ─── Unread badge ─── */}
+                  {unreadIds.has(lead.id) && (
+                    <span className="absolute top-2 right-2 min-w-[20px] h-5 flex items-center justify-center px-1.5 text-[10px] font-bold text-white bg-red-500 rounded-full" title="New replies">
+                      {unreadCounts[lead.id] || 1}
+                    </span>
+                  )}
                   {/* ─── Card header row ─── */}
                   <div className={`flex items-center gap-5 px-5 overflow-x-auto ${isEditing ? "pt-4 pb-3" : "py-3.5"}`}>
                     {/* Select checkbox */}
@@ -1030,9 +1036,6 @@ export default function LeadsClient({
                             lead.name || "Unnamed"
                           )}
                         </span>
-                        {unreadIds.has(lead.id) && (
-                          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="New response" />
-                        )}
                         {lead.company && (
                           <span className="text-xs text-neutral-400 dark:text-neutral-500 truncate">
                             at {searchQuery ? <HighlightText text={lead.company} query={search} /> : lead.company}
