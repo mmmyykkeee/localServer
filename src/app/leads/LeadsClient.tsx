@@ -1003,7 +1003,7 @@ export default function LeadsClient({
                 >
                   {/* ─── Unread badge ─── */}
                   {unreadIds.has(lead.id) && (
-                    <span className="absolute top-2 right-2 min-w-[20px] h-5 flex items-center justify-center px-1.5 text-[10px] font-bold text-white bg-red-500 rounded-full" title="New replies">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center px-1 text-[9px] font-bold text-white bg-red-500 rounded-full shadow-sm" title="New replies">
                       {unreadCounts[lead.id] || 1}
                     </span>
                   )}
@@ -1266,7 +1266,7 @@ export default function LeadsClient({
                             <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Conversation ({leadMessages[lead.id].length - 1} replies)</span>
                             <div className="space-y-3">
                               {leadMessages[lead.id].slice(1).reverse().map((msg) => (
-                                <div key={msg.id} className={`relative ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
+                                <div key={msg.id} className={`relative group ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
                                   <div className={`rounded-lg p-3 text-xs ${msg.direction === "outgoing" ? "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800" : "bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700"}`}>
                                     <div className="flex items-center gap-2 mb-1.5">
                                       <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${msg.direction === "outgoing" ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400" : "bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400"}`}>
@@ -1274,6 +1274,9 @@ export default function LeadsClient({
                                       </span>
                                       <span className="text-neutral-400 dark:text-neutral-500">{msg.from}</span>
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                      <button onClick={async () => { if (!confirm("Delete this message?")) return; await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); if (draftLead) await fetchDrafts(draftLead.id); }} className="opacity-0 group-hover:opacity-100 text-neutral-300 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all duration-150 cursor-pointer ml-1" title="Delete">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                      </button>
                                     </div>
                                     {msg.subject && <p className="text-neutral-500 dark:text-neutral-400 mb-1">Re: {msg.subject}</p>}
                                     <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed">{msg.content}</p>
