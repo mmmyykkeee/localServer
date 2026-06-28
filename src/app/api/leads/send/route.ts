@@ -42,7 +42,16 @@ export async function POST(req: NextRequest) {
         const info = await transporter.sendMail({ from: smtpFrom, to, subject, html, replyTo: replyTo || "0mykembugua@gmail.com" });
 
         if (leadId) {
-          const textContent = html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim();
+          const textContent = html
+            .replace(/<br\s*\/?>/gi, "\n")
+            .replace(/<\/?p[^>]*>/gi, "\n")
+            .replace(/<[^>]*>/g, "")
+            .replace(/&nbsp;/g, " ")
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
           await prisma.message.create({
             data: {
               leadId: Number(leadId),

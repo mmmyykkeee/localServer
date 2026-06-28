@@ -22,9 +22,9 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <Link
               href="/leads"
-              className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors duration-200"
+              className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 active:scale-[0.97] transition-all duration-200"
             >
-              Leads
+              Open app
             </Link>
             <Link
               href="/analytics"

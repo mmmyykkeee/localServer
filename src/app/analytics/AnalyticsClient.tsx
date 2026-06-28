@@ -134,17 +134,19 @@ export default function AnalyticsClient({
           </div>
 
           {/* Top Companies */}
-          <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
+          <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 overflow-x-auto">
             <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-4">Top Companies</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={topCompanies} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" className="dark:stroke-neutral-800" />
-                <XAxis type="number" tick={{ fontSize: 11 }} stroke="#a3a3a3" />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} stroke="#a3a3a3" />
-                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e5e5e5", fontSize: "12px" }} />
-                <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="min-w-[400px]">
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={topCompanies} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" className="dark:stroke-neutral-800" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="#a3a3a3" />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={160} stroke="#a3a3a3" interval={0} />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e5e5e5", fontSize: "12px" }} />
+                  <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Performance Radial */}
