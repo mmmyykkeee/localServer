@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "../toast";
 import Image from "next/image";
+import ThemeToggle from "../theme-toggle";
 
 interface Lead {
   id: number;
@@ -171,6 +172,7 @@ export default function LeadsClient({
   const [syncStatus, setSyncStatus] = useState<"idle" | "no-replies" | "caught">("idle");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
+  const [fadingId, setFadingId] = useState<number | null>(null);
   const [deleteDraftConfirmId, setDeleteDraftConfirmId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
@@ -719,6 +721,7 @@ export default function LeadsClient({
           </svg>
           <span className="text-neutral-600 dark:text-neutral-300 font-medium">Leads</span>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <kbd className="text-[10px] text-neutral-300 dark:text-neutral-600 hidden sm:inline-flex items-center gap-1">
               <span className="px-1 py-0.5 border border-neutral-200 dark:border-neutral-700 rounded text-[9px] uppercase tracking-wider">⌘K</span>
               <span className="text-neutral-300 dark:text-neutral-600">search</span>
@@ -1239,14 +1242,14 @@ export default function LeadsClient({
                               {leadDrafts[lead.id].map((draft) => {
                                 const isDraftExpanded = expandedDraftId === draft.id;
                                 return (
-                                  <div key={draft.id} className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 text-xs group">
+                                  <div key={draft.id} className={`bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 text-xs group transition-all duration-300 ${fadingId === draft.id ? "animate-fade-out" : ""}`}>
                                     <div className="flex items-center gap-2 mb-2">
                                       {draft.used && <span className="text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">Used</span>}
                                       {draft.tone && <span className="text-neutral-400 dark:text-neutral-500">{draft.tone}</span>}
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(draft.createdAt).toLocaleDateString()}</span>
                                       {deleteDraftConfirmId === draft.id ? (
                                         <span className="inline-flex items-center gap-1">
-                                          <button onClick={async () => { await fetch(`/api/leads/draft/${draft.id}`, { method: "DELETE" }); setDeleteDraftConfirmId(null); setLeadDrafts((prev) => ({ ...prev, [lead.id]: (prev[lead.id] || []).filter((d) => d.id !== draft.id) })); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
+                                          <button onClick={async () => { setFadingId(draft.id); await fetch(`/api/leads/draft/${draft.id}`, { method: "DELETE" }); setDeleteDraftConfirmId(null); setTimeout(() => { setLeadDrafts((prev) => ({ ...prev, [lead.id]: (prev[lead.id] || []).filter((d) => d.id !== draft.id) })); setFadingId(null); }, 300); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
                                           <button onClick={() => setDeleteDraftConfirmId(null)} className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Cancel</button>
                                         </span>
                                       ) : (
@@ -1288,7 +1291,7 @@ export default function LeadsClient({
                             <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Conversation ({leadMessages[lead.id].length - 1} replies)</span>
                             <div className="space-y-3">
                               {leadMessages[lead.id].slice(1).map((msg) => (
-                                <div key={msg.id} className={`relative group ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
+                                <div key={msg.id} className={`relative group transition-all duration-300 ${fadingId === msg.id ? "animate-fade-out" : ""} ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
                                   <div className={`rounded-lg p-3 text-xs ${msg.direction === "outgoing" ? "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800" : "bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700"}`}>
                                     <div className="flex items-center gap-2 mb-1.5">
                                       <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${msg.direction === "outgoing" ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400" : "bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400"}`}>
@@ -1298,7 +1301,7 @@ export default function LeadsClient({
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                                       {deleteConfirmId === msg.id ? (
                                         <span className="inline-flex items-center gap-1 ml-1">
-                                          <button onClick={async () => { await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); setDeletedId(msg.id); setTimeout(() => setDeletedId(null), 1500); setLeadMessages((prev) => ({ ...prev, [lead.id]: (prev[lead.id] || []).filter((m) => m.id !== msg.id) })); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
+                                          <button onClick={async () => { setFadingId(msg.id); await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); setTimeout(() => { setLeadMessages((prev) => ({ ...prev, [lead.id]: (prev[lead.id] || []).filter((m) => m.id !== msg.id) })); setFadingId(null); }, 300); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
                                           <button onClick={() => setDeleteConfirmId(null)} className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Cancel</button>
                                         </span>
                                       ) : deletedId === msg.id ? (

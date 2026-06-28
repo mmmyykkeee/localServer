@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import ThemeToggle from "../theme-toggle";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -59,9 +60,8 @@ export default function AnalyticsClient({
         <nav className="mb-6 flex items-center gap-2 text-xs text-neutral-400 dark:text-neutral-500">
           <Link href="/" className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Home</Link>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          <Link href="/leads" className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Leads</Link>
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           <span className="text-neutral-600 dark:text-neutral-300 font-medium">Analytics</span>
+          <div className="ml-auto"><ThemeToggle /></div>
         </nav>
 
         <div className="mb-12">
