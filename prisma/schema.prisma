@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Lead {
+  id          Int          @id @default(autoincrement())
+  website     String?
+  email       String?
+  phone       String?
+  name        String?
+  company     String?
+  notes       String?
+  enriched    String?      @db.Text
+  status      String?      @default("new")
+  response    String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  emailDrafts EmailDraft[]
+  messages    Message[]
+
+  @@index([name])
+  @@index([company])
+  @@index([email])
+  @@index([status])
+}
+
+model EmailDraft {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  to        String?
+  tone      String?
+  purpose   String?
+  model     String?
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([used])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  direction String
+  from      String?
+  to        String?
+  subject   String?
+  content   String   @db.Text
+  messageId String?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([messageId])
+}
