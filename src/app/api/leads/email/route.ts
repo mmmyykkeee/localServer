@@ -10,13 +10,14 @@ export async function POST(req: NextRequest) {
 
     const enriched = lead.enriched ? JSON.parse(lead.enriched) : null;
 
-    const prompt = `Write a short, personal cold email from Michael at Michaelsoft to a business owner. This is a one-on-one outreach, not a mass email.
+    const prompt = `You are Michael from Michaelsoft, writing a cold email to a company that sells software or services to businesses.
 
-Write with this flow:
-1. Open by mentioning something specific about their business you noticed.
-2. Briefly mention a problem their customers likely face with procurement.
-3. Mention Michaelsoft Procurement as something that could help — simple, affordable, works with M-Pesa.
-4. Ask if they'd be open to a quick chat.
+Write a personalized email with this exact flow:
+1. Open by mentioning something specific you noticed about their company and what they do.
+2. Point out an unattended gap — their customers likely need a procurement system but they don't offer one.
+3. Introduce Michaelsoft Procurement (https://procurement.michaelsoft.co.ke/overview) as a platform that could complement their existing offerings. It is a simple, affordable procurement platform for SMEs that works with M-Pesa, covering supplier management, price comparison, order tracking, and invoicing.
+4. Say you are looking to add your technology to their already existing one — a partnership where they can offer procurement to their customers.
+5. End with a soft ask to chat.
 
 Lead info:
 - Name: ${lead.name || "Unknown"}
@@ -24,17 +25,15 @@ Lead info:
 - Website: ${lead.website || "N/A"}
 - About them: ${enriched?.description || "No description available"}
 
-Tone: ${tone || "warm, conversational, like writing to a colleague"}
+Tone: ${tone || "professional, warm, and consultative"}
 
 Rules:
-- Write like a real person, not a marketer
-- Under 100 words
-- No salesy language (avoid: opportunity, solution, leverage, streamline, empower, unlock, transform, cutting-edge, revolutionary, game-changing)
-- No bullet points or lists
+- Under 150 words
+- Be specific to their business
 - No emojis
-- No excessive punctuation
-- No "Dear Sir/Madam" — use their name
-- Sign off as "Michael\n+254704472009"`;
+- No excessive punctuation or exclamation marks
+- Do NOT use words like: leverage, streamline, empower, unlock, transform, cutting-edge, revolutionary, game-changing
+- Sign off as "Best regards,\nMichael\n+254704472009"`;
 
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
