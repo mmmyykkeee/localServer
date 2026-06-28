@@ -1261,11 +1261,11 @@ export default function LeadsClient({
                         )}
 
                         {/* ─── Conversation Thread ─── */}
-                        {leadMessages[lead.id] && leadMessages[lead.id].length > 0 && (
+                        {leadMessages[lead.id] && leadMessages[lead.id].length > 1 && (
                           <div className="mt-4">
-                            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Conversation ({leadMessages[lead.id].length} messages)</span>
+                            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Conversation ({leadMessages[lead.id].length - 1} replies)</span>
                             <div className="space-y-3">
-                              {leadMessages[lead.id].map((msg) => (
+                              {leadMessages[lead.id].slice(1).reverse().map((msg) => (
                                 <div key={msg.id} className={`relative ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
                                   <div className={`rounded-lg p-3 text-xs ${msg.direction === "outgoing" ? "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800" : "bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700"}`}>
                                     <div className="flex items-center gap-2 mb-1.5">
