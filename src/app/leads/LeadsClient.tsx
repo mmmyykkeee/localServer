@@ -1063,38 +1063,24 @@ export default function LeadsClient({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-                      {lead.website && (          <button
-            onClick={() => handleEnrich(lead)} disabled={enrichingId === lead.id} title="Enrich this lead" className="px-2 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-all duration-150 cursor-pointer disabled:opacity-40 inline-flex items-center gap-1">
+                    <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                      {lead.website && (
+                        <button onClick={() => handleEnrich(lead)} disabled={enrichingId === lead.id} title="Enrich this lead" className="px-2.5 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer disabled:opacity-40 inline-flex items-center gap-1">
                           {enrichingId === lead.id ? <><div className="w-3 h-3 border border-neutral-300 dark:border-neutral-600 border-t-neutral-600 dark:border-t-neutral-300 rounded-full animate-spin" />Enriching...</> : "Enrich"}
                         </button>
                       )}
-                      <button
-                        onClick={() => handleGenerateEmail(lead)}
-                        disabled={generating === lead.id}
-                        className="px-2 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-all duration-150 cursor-pointer disabled:opacity-40"
-                      >
+                      <button onClick={() => handleGenerateEmail(lead)} disabled={generating === lead.id} className="px-2.5 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer disabled:opacity-40">
                         {generating === lead.id ? <Spinner show /> : "Draft email"}
                       </button>
-                      <button
-                        onClick={() => (isEditing ? cancelEdit() : openEdit(lead))}
-                        className={`px-2 py-1 text-xs rounded transition-all duration-150 cursor-pointer ${
-                          isEditing
-                            ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                            : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                        }`}
-                      >
+                      <button onClick={() => (isEditing ? cancelEdit() : openEdit(lead))} className={`px-2.5 py-1 text-xs rounded-md border transition-all duration-150 cursor-pointer ${isEditing ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-600" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"}`}>
                         {isEditing ? "Done" : "Edit"}
                       </button>
-                      <button
-                        onClick={() => handleDelete(lead.id)}
-                        className="px-2 py-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950 rounded transition-all duration-150 cursor-pointer"
-                      >
+                      <button onClick={() => handleDelete(lead.id)} className="px-2.5 py-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 border border-red-200 dark:border-red-900 hover:border-red-300 dark:hover:border-red-700 rounded-md transition-all duration-150 cursor-pointer">
                         Delete
                       </button>
                       <button
                         onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next) { setUnreadIds((prev) => { const next2 = new Set(prev); next2.delete(lead.id); return next2; }); fetch(`/api/leads/${lead.id}/view`, { method: "POST" }); if (!leadDrafts[lead.id]) fetchDrafts(lead.id); } }}
-                        className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 rounded transition-all duration-150 cursor-pointer"
+                        className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer"
                       >
                         <svg className={`w-4 h-4 transition-transform duration-150 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -1249,10 +1235,10 @@ export default function LeadsClient({
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(draft.createdAt).toLocaleDateString()}</span>
                                     </div>
                                     <p className={`text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed ${isDraftExpanded ? "" : "line-clamp-4"}`}>{draft.content}</p>
-                                    <div className="flex items-center gap-3 mt-2">
-                                      <button onClick={() => setExpandedDraftId(isDraftExpanded ? null : draft.id)} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150 cursor-pointer">{isDraftExpanded ? "Show less" : "Show more"}</button>
-                                      <button onClick={async () => { setDraftCopiedId(draft.id); await navigator.clipboard.writeText(draft.content); await fetch(`/api/leads/draft/${draft.id}/use`, { method: "POST" }); setTimeout(() => setDraftCopiedId(null), 1500); }} className={`transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${draftCopiedId === draft.id ? "text-emerald-600 dark:text-emerald-400" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"}`}>{draftCopiedId === draft.id ? <><TickIcon />Copied</> : "Copy"}</button>
-                                      <button onClick={() => handleSendEmail(lead.email || "", `Partnership Opportunity - Michaelsoft Procurement`, draft.content, draft.id)} disabled={sendingEmail} className={`transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${sentEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400" : sendingEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400" : "text-neutral-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400"}`}>{sendingEmailId === draft.id ? <div className="w-3 h-3 border border-emerald-300 border-t-emerald-600 rounded-full animate-spin" /> : sentEmailId === draft.id ? <TickIcon /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}{sentEmailId === draft.id ? "Sent" : "Send"}</button>
+                                    <div className="flex items-center gap-1.5 mt-2">
+                                      <button onClick={() => setExpandedDraftId(isDraftExpanded ? null : draft.id)} className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer">{isDraftExpanded ? "Show less" : "Show more"}</button>
+                                      <button onClick={async () => { setDraftCopiedId(draft.id); await navigator.clipboard.writeText(draft.content); await fetch(`/api/leads/draft/${draft.id}/use`, { method: "POST" }); setTimeout(() => setDraftCopiedId(null), 1500); }} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${draftCopiedId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"}`}>{draftCopiedId === draft.id ? <><TickIcon />Copied</> : "Copy"}</button>
+                                      <button onClick={() => handleSendEmail(lead.email || "", `Partnership Opportunity - Michaelsoft Procurement`, draft.content, draft.id)} disabled={sendingEmail} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${sentEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : sendingEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 border-neutral-200 dark:border-neutral-700 hover:border-emerald-300 dark:hover:border-emerald-700"}`}>{sendingEmailId === draft.id ? <div className="w-3 h-3 border border-emerald-300 border-t-emerald-600 rounded-full animate-spin" /> : sentEmailId === draft.id ? <TickIcon /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}{sentEmailId === draft.id ? "Sent" : "Send"}</button>
                                     </div>
                                   </div>
                                 );
