@@ -695,6 +695,12 @@ export default function LeadsClient({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="text-neutral-600 dark:text-neutral-300 font-medium">Leads</span>
+          <svg className="w-3 h-3 text-neutral-300 dark:text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <Link href="/analytics" className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150">
+            Analytics
+          </Link>
           <div className="ml-auto flex items-center gap-2">
             <kbd className="text-[10px] text-neutral-300 dark:text-neutral-600 hidden sm:inline-flex items-center gap-1">
               <span className="px-1 py-0.5 border border-neutral-200 dark:border-neutral-700 rounded text-[9px] uppercase tracking-wider">⌘K</span>
@@ -1202,20 +1208,6 @@ export default function LeadsClient({
                             )}
                           </div>
                         </div>
-
-                        {/* ─── Response (when contacted) ─── */}
-                        {lead.status === "contacted" && (
-                          <div className="mb-4">
-                            <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1.5">Their response</label>
-                            <textarea
-                              defaultValue={lead.response || ""}
-                              onBlur={(e) => handleResponseBlur(lead.id, e.target.value)}
-                              className={`${inputClass} resize-none`}
-                              rows={3}
-                              placeholder="Paste or type their response here..."
-                            />
-                          </div>
-                        )}
 
                         {/* ─── Enriched Data ─── */}
                         {enriched && (

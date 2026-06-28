@@ -24,7 +24,13 @@ export default function Home() {
               href="/leads"
               className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors duration-200"
             >
-              Open app
+              Leads
+            </Link>
+            <Link
+              href="/analytics"
+              className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors duration-200"
+            >
+              Analytics
             </Link>
             <ThemeToggle />
           </div>
