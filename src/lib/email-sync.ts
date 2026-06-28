@@ -34,16 +34,20 @@ export async function syncEmailReplies() {
       port: 993,
       tls: true,
       tlsOptions: { rejectUnauthorized: false },
-      authTimeout: 10000,
+      authTimeout: 15000,
     },
   });
 
   await connection.openBox("INBOX");
 
   const searchCriteria = ["UNSEEN"];
-  const fetchOptions = { bodies: ["HEADER", "TEXT"], markSeen: true };
+  const fetchOptions = {
+    bodies: [""],
+    markSeen: false,
+  };
 
   const messages = await connection.search(searchCriteria, fetchOptions);
+  console.log(`IMAP: Found ${messages.length} total emails in inbox`);
 
   const leads = await prisma.lead.findMany({
     where: { email: { not: null } },
@@ -56,41 +60,57 @@ export async function syncEmailReplies() {
   }
 
   let matched = 0;
+  let skipped = 0;
+  const fromAddresses = new Set<string>();
   for (const item of messages) {
-    const all = item.parts.map((p: any) => p.body).join("");
-    const parsed = await simpleParser(all);
+    try {
+      const all = item.parts.map((p: any) => p.body).join("");
+      if (!all) continue;
 
-    const fromEmail = parsed.from?.value?.[0]?.address?.toLowerCase();
-    if (!fromEmail || !leadEmailMap.has(fromEmail)) continue;
+      const parsed = await simpleParser(all);
 
-    const leadId = leadEmailMap.get(fromEmail)!;
-    const body = parsed.text || "";
-    const messageId = parsed.messageId || null;
+      const fromEmail = parsed.from?.value?.[0]?.address?.toLowerCase();
+      if (!fromEmail) { skipped++; continue; }
+      fromAddresses.add(fromEmail);
 
-    const existingMessage = messageId
-      ? await prisma.message.findFirst({ where: { messageId } })
-      : null;
-    if (existingMessage) continue;
+      const leadId = leadEmailMap.get(fromEmail);
+      if (!leadId) { skipped++; continue; }
 
-    await prisma.message.create({
-      data: {
-        leadId,
-        direction: "incoming",
-        from: fromEmail,
-        to: imapUser || "",
-        subject: parsed.subject || "",
-        content: body,
-        messageId: messageId || null,
-      },
-    });
+      const body = parsed.text || "";
+      const messageId = parsed.messageId || null;
 
-    await prisma.lead.update({
-      where: { id: leadId },
-      data: { status: "contacted" },
-    });
+      if (!body.trim()) continue;
 
-    matched++;
+      const existingMessage = messageId
+        ? await prisma.message.findFirst({ where: { messageId } })
+        : null;
+      if (existingMessage) continue;
+
+      await prisma.message.create({
+        data: {
+          leadId,
+          direction: "incoming",
+          from: fromEmail,
+          to: imapUser || "",
+          subject: parsed.subject || "",
+          content: body.trim(),
+          messageId: messageId || null,
+        },
+      });
+
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { status: "contacted" },
+      });
+
+      matched++;
+    } catch (e) {
+      console.error("Error processing message:", e);
+    }
   }
+
+  console.log(`IMAP sync: ${messages.length} total, ${matched} matched, ${skipped} skipped`);
+  console.log(`Unique from addresses (${fromAddresses.size}):`, [...fromAddresses].slice(0, 20));
 
   connection.end();
   return { total: messages.length, matched };
