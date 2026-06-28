@@ -131,6 +131,7 @@ export default function LeadsClient({
   currentPage = 1,
   pageSize = 8,
   statusFilter = "",
+  unreadLeadIds = [],
 }: {
   leads: Lead[];
   createLead: Action;
@@ -140,6 +141,7 @@ export default function LeadsClient({
   currentPage?: number;
   pageSize?: number;
   statusFilter?: string;
+  unreadLeadIds?: number[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -163,6 +165,7 @@ export default function LeadsClient({
   const [leadMessages, setLeadMessages] = useState<Record<number, Array<{ id: number; direction: string; from: string | null; to: string | null; subject: string | null; content: string; createdAt: string }>>>({});
   const [replyContent, setReplyContent] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+  const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set(unreadLeadIds));
   const [copied, setCopied] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
   const [draftCopiedId, setDraftCopiedId] = useState<number | null>(null);
@@ -1025,6 +1028,9 @@ export default function LeadsClient({
                             lead.name || "Unnamed"
                           )}
                         </span>
+                        {unreadIds.has(lead.id) && (
+                          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="New response" />
+                        )}
                         {lead.company && (
                           <span className="text-xs text-neutral-400 dark:text-neutral-500 truncate">
                             at {searchQuery ? <HighlightText text={lead.company} query={search} /> : lead.company}
@@ -1081,7 +1087,7 @@ export default function LeadsClient({
                         Delete
                       </button>
                       <button
-                        onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next && !leadDrafts[lead.id]) fetchDrafts(lead.id); }}
+                        onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next) { setUnreadIds((prev) => { const next2 = new Set(prev); next2.delete(lead.id); return next2; }); if (!leadDrafts[lead.id]) fetchDrafts(lead.id); } }}
                         className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 rounded transition-all duration-150 cursor-pointer"
                       >
                         <svg className={`w-4 h-4 transition-transform duration-150 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
