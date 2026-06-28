@@ -44,18 +44,17 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const leadIds = leads.map((l) => l.id);
 
   const unreadCounts: Record<number, number> = {};
-  for (const leadId of leadIds) {
-    const lastMsg = await prisma.message.findFirst({
-      where: { leadId },
-      orderBy: { createdAt: "desc" },
-      select: { direction: true },
+  for (const lead of leads) {
+    const leadId = lead.id;
+    const lastViewed = lead.lastViewedAt || lead.createdAt;
+    const incomingCount = await prisma.message.count({
+      where: {
+        leadId,
+        direction: "incoming",
+        createdAt: { gt: lastViewed },
+      },
     });
-    if (lastMsg?.direction === "incoming") {
-      const incomingCount = await prisma.message.count({
-        where: { leadId, direction: "incoming" },
-      });
-      unreadCounts[leadId] = incomingCount;
-    }
+    if (incomingCount > 0) unreadCounts[leadId] = incomingCount;
   }
 
   return (

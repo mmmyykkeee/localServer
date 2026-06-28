@@ -1092,7 +1092,7 @@ export default function LeadsClient({
                         Delete
                       </button>
                       <button
-                        onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next) { setUnreadIds((prev) => { const next2 = new Set(prev); next2.delete(lead.id); return next2; }); if (!leadDrafts[lead.id]) fetchDrafts(lead.id); } }}
+                        onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next) { setUnreadIds((prev) => { const next2 = new Set(prev); next2.delete(lead.id); return next2; }); fetch(`/api/leads/${lead.id}/view`, { method: "POST" }); if (!leadDrafts[lead.id]) fetchDrafts(lead.id); } }}
                         className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 rounded transition-all duration-150 cursor-pointer"
                       >
                         <svg className={`w-4 h-4 transition-transform duration-150 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

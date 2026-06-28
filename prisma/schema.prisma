@@ -11,20 +11,21 @@ datasource db {
 }
 
 model Lead {
-  id          Int          @id @default(autoincrement())
-  website     String?
-  email       String?
-  phone       String?
-  name        String?
-  company     String?
-  notes       String?
-  enriched    String?      @db.Text
-  status      String?      @default("new")
-  response    String?      @db.Text
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  emailDrafts EmailDraft[]
-  messages    Message[]
+  id            Int          @id @default(autoincrement())
+  website       String?
+  email         String?
+  phone         String?
+  name          String?
+  company       String?
+  notes         String?
+  enriched      String?      @db.Text
+  status        String?      @default("new")
+  response      String?      @db.Text
+  lastViewedAt  DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  emailDrafts   EmailDraft[]
+  messages      Message[]
 
   @@index([name])
   @@index([company])

@@ -45,6 +45,7 @@ export type LeadMinAggregateOutputType = {
   enriched: string | null
   status: string | null
   response: string | null
+  lastViewedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -60,6 +61,7 @@ export type LeadMaxAggregateOutputType = {
   enriched: string | null
   status: string | null
   response: string | null
+  lastViewedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -75,6 +77,7 @@ export type LeadCountAggregateOutputType = {
   enriched: number
   status: number
   response: number
+  lastViewedAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -100,6 +103,7 @@ export type LeadMinAggregateInputType = {
   enriched?: true
   status?: true
   response?: true
+  lastViewedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -115,6 +119,7 @@ export type LeadMaxAggregateInputType = {
   enriched?: true
   status?: true
   response?: true
+  lastViewedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -130,6 +135,7 @@ export type LeadCountAggregateInputType = {
   enriched?: true
   status?: true
   response?: true
+  lastViewedAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -232,6 +238,7 @@ export type LeadGroupByOutputType = {
   enriched: string | null
   status: string | null
   response: string | null
+  lastViewedAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: LeadCountAggregateOutputType | null
@@ -270,6 +277,7 @@ export type LeadWhereInput = {
   enriched?: Prisma.StringNullableFilter<"Lead"> | string | null
   status?: Prisma.StringNullableFilter<"Lead"> | string | null
   response?: Prisma.StringNullableFilter<"Lead"> | string | null
+  lastViewedAt?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   emailDrafts?: Prisma.EmailDraftListRelationFilter
@@ -287,6 +295,7 @@ export type LeadOrderByWithRelationInput = {
   enriched?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrderInput | Prisma.SortOrder
   response?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastViewedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   emailDrafts?: Prisma.EmailDraftOrderByRelationAggregateInput
@@ -307,6 +316,7 @@ export type LeadWhereUniqueInput = Prisma.AtLeast<{
   enriched?: Prisma.StringNullableFilter<"Lead"> | string | null
   status?: Prisma.StringNullableFilter<"Lead"> | string | null
   response?: Prisma.StringNullableFilter<"Lead"> | string | null
+  lastViewedAt?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   emailDrafts?: Prisma.EmailDraftListRelationFilter
@@ -324,6 +334,7 @@ export type LeadOrderByWithAggregationInput = {
   enriched?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrderInput | Prisma.SortOrder
   response?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastViewedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.LeadCountOrderByAggregateInput
@@ -347,6 +358,7 @@ export type LeadScalarWhereWithAggregatesInput = {
   enriched?: Prisma.StringNullableWithAggregatesFilter<"Lead"> | string | null
   status?: Prisma.StringNullableWithAggregatesFilter<"Lead"> | string | null
   response?: Prisma.StringNullableWithAggregatesFilter<"Lead"> | string | null
+  lastViewedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Lead"> | Date | string
 }
@@ -361,6 +373,7 @@ export type LeadCreateInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   emailDrafts?: Prisma.EmailDraftCreateNestedManyWithoutLeadInput
@@ -378,6 +391,7 @@ export type LeadUncheckedCreateInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   emailDrafts?: Prisma.EmailDraftUncheckedCreateNestedManyWithoutLeadInput
@@ -394,6 +408,7 @@ export type LeadUpdateInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   emailDrafts?: Prisma.EmailDraftUpdateManyWithoutLeadNestedInput
@@ -411,6 +426,7 @@ export type LeadUncheckedUpdateInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   emailDrafts?: Prisma.EmailDraftUncheckedUpdateManyWithoutLeadNestedInput
@@ -428,6 +444,7 @@ export type LeadCreateManyInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -442,6 +459,7 @@ export type LeadUpdateManyMutationInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -457,6 +475,7 @@ export type LeadUncheckedUpdateManyInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -472,6 +491,7 @@ export type LeadCountOrderByAggregateInput = {
   enriched?: Prisma.SortOrder
   status?: Prisma.SortOrder
   response?: Prisma.SortOrder
+  lastViewedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -491,6 +511,7 @@ export type LeadMaxOrderByAggregateInput = {
   enriched?: Prisma.SortOrder
   status?: Prisma.SortOrder
   response?: Prisma.SortOrder
+  lastViewedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -506,6 +527,7 @@ export type LeadMinOrderByAggregateInput = {
   enriched?: Prisma.SortOrder
   status?: Prisma.SortOrder
   response?: Prisma.SortOrder
+  lastViewedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -521,6 +543,10 @@ export type LeadScalarRelationFilter = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -573,6 +599,7 @@ export type LeadCreateWithoutEmailDraftsInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageCreateNestedManyWithoutLeadInput
@@ -589,6 +616,7 @@ export type LeadUncheckedCreateWithoutEmailDraftsInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutLeadInput
@@ -620,6 +648,7 @@ export type LeadUpdateWithoutEmailDraftsInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUpdateManyWithoutLeadNestedInput
@@ -636,6 +665,7 @@ export type LeadUncheckedUpdateWithoutEmailDraftsInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUncheckedUpdateManyWithoutLeadNestedInput
@@ -651,6 +681,7 @@ export type LeadCreateWithoutMessagesInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   emailDrafts?: Prisma.EmailDraftCreateNestedManyWithoutLeadInput
@@ -667,6 +698,7 @@ export type LeadUncheckedCreateWithoutMessagesInput = {
   enriched?: string | null
   status?: string | null
   response?: string | null
+  lastViewedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   emailDrafts?: Prisma.EmailDraftUncheckedCreateNestedManyWithoutLeadInput
@@ -698,6 +730,7 @@ export type LeadUpdateWithoutMessagesInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   emailDrafts?: Prisma.EmailDraftUpdateManyWithoutLeadNestedInput
@@ -714,6 +747,7 @@ export type LeadUncheckedUpdateWithoutMessagesInput = {
   enriched?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   response?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastViewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   emailDrafts?: Prisma.EmailDraftUncheckedUpdateManyWithoutLeadNestedInput
@@ -770,6 +804,7 @@ export type LeadSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   enriched?: boolean
   status?: boolean
   response?: boolean
+  lastViewedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   emailDrafts?: boolean | Prisma.Lead$emailDraftsArgs<ExtArgs>
@@ -788,6 +823,7 @@ export type LeadSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   enriched?: boolean
   status?: boolean
   response?: boolean
+  lastViewedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["lead"]>
@@ -803,6 +839,7 @@ export type LeadSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   enriched?: boolean
   status?: boolean
   response?: boolean
+  lastViewedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["lead"]>
@@ -818,11 +855,12 @@ export type LeadSelectScalar = {
   enriched?: boolean
   status?: boolean
   response?: boolean
+  lastViewedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type LeadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "website" | "email" | "phone" | "name" | "company" | "notes" | "enriched" | "status" | "response" | "createdAt" | "updatedAt", ExtArgs["result"]["lead"]>
+export type LeadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "website" | "email" | "phone" | "name" | "company" | "notes" | "enriched" | "status" | "response" | "lastViewedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["lead"]>
 export type LeadInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   emailDrafts?: boolean | Prisma.Lead$emailDraftsArgs<ExtArgs>
   messages?: boolean | Prisma.Lead$messagesArgs<ExtArgs>
@@ -848,6 +886,7 @@ export type $LeadPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     enriched: string | null
     status: string | null
     response: string | null
+    lastViewedAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["lead"]>
@@ -1285,6 +1324,7 @@ export interface LeadFieldRefs {
   readonly enriched: Prisma.FieldRef<"Lead", 'String'>
   readonly status: Prisma.FieldRef<"Lead", 'String'>
   readonly response: Prisma.FieldRef<"Lead", 'String'>
+  readonly lastViewedAt: Prisma.FieldRef<"Lead", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Lead", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Lead", 'DateTime'>
 }

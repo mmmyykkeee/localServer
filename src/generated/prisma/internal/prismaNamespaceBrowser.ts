@@ -83,6 +83,7 @@ export const LeadScalarFieldEnum = {
   enriched: 'enriched',
   status: 'status',
   response: 'response',
+  lastViewedAt: 'lastViewedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
