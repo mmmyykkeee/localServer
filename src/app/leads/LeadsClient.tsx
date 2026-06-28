@@ -169,6 +169,7 @@ export default function LeadsClient({
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "no-replies" | "caught">("idle");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deletedId, setDeletedId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
   const [draftCopiedId, setDraftCopiedId] = useState<number | null>(null);
@@ -701,12 +702,6 @@ export default function LeadsClient({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="text-neutral-600 dark:text-neutral-300 font-medium">Leads</span>
-          <svg className="w-3 h-3 text-neutral-300 dark:text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <Link href="/analytics" className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150">
-            Analytics
-          </Link>
           <div className="ml-auto flex items-center gap-2">
             <kbd className="text-[10px] text-neutral-300 dark:text-neutral-600 hidden sm:inline-flex items-center gap-1">
               <span className="px-1 py-0.5 border border-neutral-200 dark:border-neutral-700 rounded text-[9px] uppercase tracking-wider">⌘K</span>
@@ -1263,8 +1258,12 @@ export default function LeadsClient({
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                                       {deleteConfirmId === msg.id ? (
                                         <span className="inline-flex items-center gap-1 ml-1">
-                                          <button onClick={async () => { await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); if (draftLead) { setLeadMessages((prev) => ({ ...prev, [draftLead.id]: (prev[draftLead.id] || []).filter((m) => m.id !== msg.id) })); } }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
+                                          <button onClick={async () => { await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); setDeletedId(msg.id); setTimeout(() => setDeletedId(null), 1500); if (draftLead) { setLeadMessages((prev) => ({ ...prev, [draftLead.id]: (prev[draftLead.id] || []).filter((m) => m.id !== msg.id) })); } }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
                                           <button onClick={() => setDeleteConfirmId(null)} className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Cancel</button>
+                                        </span>
+                                      ) : deletedId === msg.id ? (
+                                        <span className="inline-flex items-center gap-1 ml-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                          <TickIcon />Deleted
                                         </span>
                                       ) : (
                                         <button onClick={() => setDeleteConfirmId(msg.id)} className="opacity-0 group-hover:opacity-100 text-neutral-300 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all duration-150 cursor-pointer ml-1" title="Delete">

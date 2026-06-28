@@ -134,18 +134,22 @@ export default function AnalyticsClient({
           </div>
 
           {/* Top Companies */}
-          <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 overflow-x-auto">
+          <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
             <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-4">Top Companies</h3>
-            <div className="min-w-[400px]">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={topCompanies} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" className="dark:stroke-neutral-800" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="#a3a3a3" />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={160} stroke="#a3a3a3" interval={0} />
-                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e5e5e5", fontSize: "12px" }} />
-                  <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="space-y-2.5">
+              {topCompanies.map((company, i) => {
+                const maxCount = topCompanies[0]?.count || 1;
+                const width = (company.count / maxCount) * 100;
+                return (
+                  <div key={company.name} className="flex items-center gap-3">
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400 w-36 truncate text-right shrink-0" title={company.name}>{company.name}</span>
+                    <div className="flex-1 h-6 bg-neutral-100 dark:bg-neutral-800 rounded-md overflow-hidden">
+                      <div className="h-full rounded-md transition-all duration-500" style={{ width: `${width}%`, backgroundColor: COLORS[i % COLORS.length] }} />
+                    </div>
+                    <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300 w-6 text-right shrink-0">{company.count}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
