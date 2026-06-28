@@ -1266,7 +1266,7 @@ export default function LeadsClient({
                           <div className="mt-4">
                             <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Conversation ({leadMessages[lead.id].length - 1} replies)</span>
                             <div className="space-y-3">
-                              {leadMessages[lead.id].slice(1).reverse().map((msg) => (
+                              {leadMessages[lead.id].slice(1).map((msg) => (
                                 <div key={msg.id} className={`relative group ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
                                   <div className={`rounded-lg p-3 text-xs ${msg.direction === "outgoing" ? "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800" : "bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700"}`}>
                                     <div className="flex items-center gap-2 mb-1.5">
@@ -1277,7 +1277,7 @@ export default function LeadsClient({
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                                       {deleteConfirmId === msg.id ? (
                                         <span className="inline-flex items-center gap-1 ml-1">
-                                          <button onClick={async () => { await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); if (draftLead) await fetchDrafts(draftLead.id); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
+                                          <button onClick={async () => { await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteConfirmId(null); if (draftLead) { setLeadMessages((prev) => ({ ...prev, [draftLead.id]: (prev[draftLead.id] || []).filter((m) => m.id !== msg.id) })); } }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Delete</button>
                                           <button onClick={() => setDeleteConfirmId(null)} className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-0.5 rounded transition-colors duration-150 cursor-pointer">Cancel</button>
                                         </span>
                                       ) : (
