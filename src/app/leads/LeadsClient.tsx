@@ -174,6 +174,8 @@ export default function LeadsClient({
   const [deleteDraftConfirmId, setDeleteDraftConfirmId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
+  const [editingDraftContent, setEditingDraftContent] = useState("");
   const [draftCopiedId, setDraftCopiedId] = useState<number | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
@@ -585,6 +587,18 @@ export default function LeadsClient({
 
   const handleSendEmail = async (to: string, subject: string, content: string, draftId?: number) => {
     if (!to) { toast("No email address for this lead", "error"); return; }
+
+    if (draftId && draftLead) {
+      const draft = leadDrafts[draftLead.id]?.find((d) => d.id === draftId);
+      if (draft?.used) {
+        if (!confirm("This email was already sent. Send it again?")) return;
+      }
+    }
+
+    if (draftLead?.status === "contacted") {
+      if (!confirm("This lead was already contacted. Send another email?")) return;
+    }
+
     setSendingEmail(true);
     if (draftId) setSendingEmailId(draftId);
     try {
@@ -1241,11 +1255,25 @@ export default function LeadsClient({
                                         </button>
                                       )}
                                     </div>
-                                    <p className={`text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed ${isDraftExpanded ? "" : "line-clamp-4"}`}>{draft.content}</p>
+                                    {editingDraftId === draft.id ? (
+                                      <textarea value={editingDraftContent} onChange={(e) => setEditingDraftContent(e.target.value)} className={`${inputClass} resize-none mb-2`} rows={6} />
+                                    ) : (
+                                      <p className={`text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed ${isDraftExpanded ? "" : "line-clamp-4"}`}>{draft.content}</p>
+                                    )}
                                     <div className="flex items-center gap-1.5 mt-2">
-                                      <button onClick={() => setExpandedDraftId(isDraftExpanded ? null : draft.id)} className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer">{isDraftExpanded ? "Show less" : "Show more"}</button>
-                                      <button onClick={async () => { setDraftCopiedId(draft.id); await navigator.clipboard.writeText(draft.content); await fetch(`/api/leads/draft/${draft.id}/use`, { method: "POST" }); setTimeout(() => setDraftCopiedId(null), 1500); }} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${draftCopiedId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"}`}>{draftCopiedId === draft.id ? <><TickIcon />Copied</> : "Copy"}</button>
-                                      <button onClick={() => handleSendEmail(lead.email || "", `Partnership Opportunity - Michaelsoft Procurement`, draft.content, draft.id)} disabled={sendingEmail} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${sentEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : sendingEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 border-neutral-200 dark:border-neutral-700 hover:border-emerald-300 dark:hover:border-emerald-700"}`}>{sendingEmailId === draft.id ? <div className="w-3 h-3 border border-emerald-300 border-t-emerald-600 rounded-full animate-spin" /> : sentEmailId === draft.id ? <TickIcon /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}{sentEmailId === draft.id ? "Sent" : "Send"}</button>
+                                      {editingDraftId === draft.id ? (
+                                        <>
+                                          <button onClick={async () => { await fetch(`/api/leads/draft/${draft.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: editingDraftContent }) }); setLeadDrafts((prev) => ({ ...prev, [lead.id]: (prev[lead.id] || []).map((d) => d.id === draft.id ? { ...d, content: editingDraftContent } : d) })); setEditingDraftId(null); toast("Draft updated"); }} className="px-2 py-1 text-xs font-medium text-white bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 rounded-md border border-emerald-600 dark:border-emerald-500 transition-all duration-150 cursor-pointer">Save</button>
+                                          <button onClick={() => setEditingDraftId(null)} className="px-2 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-md transition-all duration-150 cursor-pointer">Cancel</button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button onClick={() => { setEditingDraftId(draft.id); setEditingDraftContent(draft.content); }} className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer">Edit</button>
+                                          <button onClick={() => setExpandedDraftId(isDraftExpanded ? null : draft.id)} className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer">{isDraftExpanded ? "Show less" : "Show more"}</button>
+                                          <button onClick={async () => { setDraftCopiedId(draft.id); await navigator.clipboard.writeText(draft.content); await fetch(`/api/leads/draft/${draft.id}/use`, { method: "POST" }); setTimeout(() => setDraftCopiedId(null), 1500); }} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${draftCopiedId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"}`}>{draftCopiedId === draft.id ? <><TickIcon />Copied</> : "Copy"}</button>
+                                          <button onClick={() => handleSendEmail(lead.email || "", `Partnership Opportunity - Michaelsoft Procurement`, draft.content, draft.id)} disabled={sendingEmail} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${sentEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : sendingEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 border-neutral-200 dark:border-neutral-700 hover:border-emerald-300 dark:hover:border-emerald-700"}`}>{sendingEmailId === draft.id ? <div className="w-3 h-3 border border-emerald-300 border-t-emerald-600 rounded-full animate-spin" /> : sentEmailId === draft.id ? <TickIcon /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}{sentEmailId === draft.id ? "Sent" : "Send"}</button>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
                                 );
