@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
 
     const enriched = lead.enriched ? JSON.parse(lead.enriched) : null;
 
-    const prompt = `You are a professional B2B salesperson writing a cold email on behalf of Michaelsoft Procurement — a web-based procurement platform for small and medium businesses in Kenya and emerging markets.
+    const prompt = `Write a short, personal cold email from Michael at Michaelsoft to a business owner. This is a one-on-one outreach, not a mass email.
 
-Write a cold email with this flow:
-1. Open by acknowledging what the recipient's company does and show genuine awareness of their work.
-2. Transition into an unexploited opportunity — their customers likely struggle with fragmented, manual procurement processes (scattered price lists, no supplier comparison, no real-time visibility, payment fragmentation).
-3. Introduce Michaelsoft Procurement as the solution they can offer their customers — a simple, flexible, affordable platform that replaces paper-based purchasing with a single digital workspace covering supplier management, price comparison, order tracking, invoicing, and M-Pesa payments.
-4. End with a clear call to action.
+Write with this flow:
+1. Open by mentioning something specific about their business you noticed.
+2. Briefly mention a problem their customers likely face with procurement.
+3. Mention Michaelsoft Procurement as something that could help — simple, affordable, works with M-Pesa.
+4. Ask if they'd be open to a quick chat.
 
 Lead info:
 - Name: ${lead.name || "Unknown"}
@@ -24,17 +24,17 @@ Lead info:
 - Website: ${lead.website || "N/A"}
 - About them: ${enriched?.description || "No description available"}
 
-Tone: ${tone || "professional, warm, and consultative"}
-Purpose: ${purpose || "presenting an opportunity to add procurement software to their offerings"}
+Tone: ${tone || "warm, conversational, like writing to a colleague"}
 
 Rules:
-- Keep it under 150 words
-- Do NOT assume they already have procurement — you are introducing the concept
-- Be specific to their business and industry
-- Focus on the opportunity for THEIR customers, not just a generic pitch
+- Write like a real person, not a marketer
+- Under 100 words
+- No salesy language (avoid: opportunity, solution, leverage, streamline, empower, unlock, transform, cutting-edge, revolutionary, game-changing)
+- No bullet points or lists
 - No emojis
-- No excessive punctuation or exclamation marks
-- Sign off as "Best regards,\nMichaelSoft Marketing\n+254704472009"`;
+- No excessive punctuation
+- No "Dear Sir/Madam" — use their name
+- Sign off as "Michael\n+254704472009"`;
 
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
