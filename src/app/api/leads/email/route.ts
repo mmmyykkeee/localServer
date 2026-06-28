@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
 
 Write a cold email with this flow:
 1. Open by acknowledging what the recipient's company does and show genuine awareness of their work.
-2. Transition into an unexploited opportunity — their customers likely struggle with fragmented, manual procurement processes (scattered price lists, no supplier comparison, no real-time visibility, payment fragmentation).
-3. Introduce Michaelsoft Procurement as the solution they can offer their customers — a simple, flexible, affordable platform that replaces paper-based purchasing with a single digital workspace covering supplier management, price comparison, order tracking, invoicing, and M-Pesa payments.
+2. Transition into an untapped opportunity — there may be an opportunity to help their customers with procurement, and Michaelsoft Procurement could be a good fit.
+3. Introduce Michaelsoft Procurement as a simple, flexible, affordable platform that covers supplier management, price comparison, order tracking, invoicing, and M-Pesa payments.
 4. End with a clear call to action.
 
 Lead info:
@@ -32,6 +32,7 @@ Rules:
 - Do NOT assume they already have procurement — you are introducing the concept
 - Be specific to their business and industry
 - Focus on the opportunity for THEIR customers, not just a generic pitch
+- Do NOT state their customers have problems — instead suggest there may be an untapped opportunity
 - No emojis
 - No excessive punctuation or exclamation marks
 - Sign off as "Best regards,\nMichael\n+254704472009"`;

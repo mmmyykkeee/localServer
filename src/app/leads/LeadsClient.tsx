@@ -178,6 +178,7 @@ export default function LeadsClient({
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const [editingDraftContent, setEditingDraftContent] = useState("");
+  const [editingModalDraft, setEditingModalDraft] = useState(false);
   const [draftCopiedId, setDraftCopiedId] = useState<number | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
@@ -613,7 +614,10 @@ export default function LeadsClient({
       const data = await res.json();
       if (data.ok) {
         if (draftId) { setSentEmailId(draftId); setTimeout(() => setSentEmailId(null), 3000); }
-        if (draftLead) { await fetchDrafts(draftLead.id); }
+        if (draftLead) {
+          setLocalLeads((prev) => prev.map((l) => l.id === draftLead.id ? { ...l, status: "contacted" } : l));
+          await fetchDrafts(draftLead.id);
+        }
       } else {
         toast(data.error || "Failed to send email", "error");
       }
@@ -1259,7 +1263,7 @@ export default function LeadsClient({
                                       )}
                                     </div>
                                     {editingDraftId === draft.id ? (
-                                      <textarea value={editingDraftContent} onChange={(e) => setEditingDraftContent(e.target.value)} className={`${inputClass} resize-none mb-2`} rows={6} />
+                                      <textarea value={editingDraftContent} onChange={(e) => setEditingDraftContent(e.target.value)} className={`${inputClass} resize-none mb-2`} rows={10} />
                                     ) : (
                                       <p className={`text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed ${isDraftExpanded ? "" : "line-clamp-4"}`}>{draft.content}</p>
                                     )}
@@ -1395,7 +1399,7 @@ export default function LeadsClient({
                   <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Cold email draft</h3>
                   <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">For {draftLead.name || draftLead.company || "this lead"}</p>
                 </div>
-                <button onClick={() => { setEmailDraft(null); setDraftLead(null); setRegenerating(false); }} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150 cursor-pointer">
+                <button onClick={() => { setEmailDraft(null); setDraftLead(null); setRegenerating(false); setEditingModalDraft(false); }} className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150 cursor-pointer">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
@@ -1427,13 +1431,14 @@ export default function LeadsClient({
                     <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-2/3" />
                   </div>
                 ) : (
-                  <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{emailDraft}</div>
+                  <>
+                    {editingModalDraft ? (
+                      <textarea value={emailDraft || ""} onChange={(e) => setEmailDraft(e.target.value)} className={`${inputClass} resize-none`} rows={10} />
+                    ) : (
+                      <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">{emailDraft}</div>
+                    )}
+                  </>
                 )}
-                <div className="flex gap-2 mt-4">
-                  <button onClick={async () => { setCopied(true); await navigator.clipboard.writeText(emailDraft || ""); if (lastDraftId) { await fetch(`/api/leads/draft/${lastDraftId}/use`, { method: "POST" }); } setTimeout(() => setCopied(false), 1500); }} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${copied ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"}`}>{copied ? <><TickIcon />Copied</> : "Copy"}</button>
-                  <button onClick={() => handleSendEmail(draftLead?.email || "", `Partnership Opportunity - Michaelsoft Procurement`, emailDraft || "", lastDraftId || undefined)} disabled={sendingEmail || !draftLead?.email} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${sentEmailId === lastDraftId ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-white dark:text-neutral-900 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600"} disabled:opacity-40`}>{sendingEmail ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Sending...</> : sentEmailId === lastDraftId ? <><TickIcon className="text-emerald-600 dark:text-emerald-400" />Sent</> : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>Send email</>}</button>
-                  <button onClick={() => handleGenerateEmail(draftLead)} disabled={generating === draftLead.id || regenerating} className="px-3 py-1.5 text-xs font-medium text-white dark:text-neutral-900 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 rounded-lg transition-colors duration-150 cursor-pointer disabled:opacity-40">Regenerate</button>
-                </div>
               </div>
             </div>
           </div>
