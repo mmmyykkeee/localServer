@@ -173,6 +173,8 @@ export default function LeadsClient({
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [fadingId, setFadingId] = useState<number | null>(null);
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
+  const [alertOnConfirm, setAlertOnConfirm] = useState<(() => void) | null>(null);
   const [deleteDraftConfirmId, setDeleteDraftConfirmId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
@@ -598,7 +600,9 @@ export default function LeadsClient({
       if (srcLeadId) {
         const draft = leadDrafts[srcLeadId]?.find((d) => d.id === draftId);
         if (draft?.used) {
-          if (!confirm("This email was already sent. Send it again?")) return;
+          setAlertMsg("This email was already sent. Send it again?");
+          setAlertOnConfirm(() => () => doSendEmail(to, subject, content, draftId, activeLeadId));
+          return;
         }
       }
     }
@@ -606,10 +610,16 @@ export default function LeadsClient({
     if (activeLeadId) {
       const lead = localLeads.find((l) => l.id === activeLeadId);
       if (lead?.status === "contacted") {
-        if (!confirm("This lead was already contacted. Send another email?")) return;
+        setAlertMsg("This lead was already contacted. Send another email?");
+        setAlertOnConfirm(() => () => doSendEmail(to, subject, content, draftId, activeLeadId));
+        return;
       }
     }
 
+    doSendEmail(to, subject, content, draftId, activeLeadId);
+  };
+
+  const doSendEmail = async (to: string, subject: string, content: string, draftId?: number, activeLeadId?: number) => {
     setSendingEmail(true);
     if (draftId) setSendingEmailId(draftId);
     try {
@@ -621,7 +631,7 @@ export default function LeadsClient({
       });
       const data = await res.json();
       if (data.ok) {
-        if (draftId) { setSentEmailId(draftId); setTimeout(() => setSentEmailId(null), 3000); }
+        if (draftId) { setSentEmailId(draftId); }
         if (activeLeadId) {
           setLocalLeads((prev) => prev.map((l) => l.id === activeLeadId ? { ...l, status: "contacted" } : l));
           await fetchDrafts(activeLeadId);
@@ -1396,6 +1406,24 @@ export default function LeadsClient({
               Next
             </button>
           </nav>
+        )}
+
+        {/* ─── Custom Alert Modal ─── */}
+        {alertMsg && (
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/60 flex items-center justify-center p-4 z-[60]">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl dark:shadow-black/40 max-w-sm w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-950 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                </div>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">{alertMsg}</p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => { setAlertMsg(null); setAlertOnConfirm(null); }} className="px-4 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-all duration-150 cursor-pointer">Cancel</button>
+                <button onClick={() => { if (alertOnConfirm) alertOnConfirm(); setAlertMsg(null); setAlertOnConfirm(null); }} className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 rounded-lg transition-all duration-150 cursor-pointer">Send anyway</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ─── Email Draft Modal ─── */}
