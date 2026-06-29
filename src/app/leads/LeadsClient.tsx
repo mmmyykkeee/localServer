@@ -380,21 +380,10 @@ export default function LeadsClient({
       fd.set("id", String(id));
       await deleteLead(fd);
     }
+    setLocalLeads((prev) => prev.filter((l) => !selectedIds.has(l.id)));
     setSelectedIds(new Set());
     setBulkProcessing(false);
     toast(`Deleted ${deleteCount} lead${deleteCount !== 1 ? "s" : ""}`, "default");
-    // Redirect if current page becomes empty
-    const newTotal = totalCount - deleteCount;
-    const maxPage = Math.max(1, Math.ceil(newTotal / pageSize));
-    const targetPage = Math.min(currentPage, maxPage);
-    if (targetPage !== currentPage) {
-      const params = new URLSearchParams(window.location.search);
-      if (targetPage > 1) params.set("page", String(targetPage));
-      else params.delete("page");
-      router.push(params.toString() ? `/leads?${params.toString()}` : "/leads");
-    } else {
-      refresh();
-    }
   };
 
   const handleBulkEnrich = async () => {
@@ -418,7 +407,7 @@ export default function LeadsClient({
     setSelectedIds(new Set());
     setBulkProcessing(false);
     toast(`Enriched ${success} of ${toEnrich.length} lead${toEnrich.length !== 1 ? "s" : ""}`, success === toEnrich.length ? "success" : "default");
-    refresh();
+    if (success > 0) refresh();
   };
 
   const cancelEdit = () => {
@@ -473,19 +462,8 @@ export default function LeadsClient({
     const fd = new FormData();
     fd.set("id", String(id));
     await deleteLead(fd);
+    setLocalLeads((prev) => prev.filter((l) => l.id !== id));
     toast("Lead deleted", "default");
-    // Redirect to correct page if current page is now out of range
-    const newTotal = totalCount - 1;
-    const maxPage = Math.max(1, Math.ceil(newTotal / pageSize));
-    const targetPage = Math.min(currentPage, maxPage);
-    if (targetPage !== currentPage) {
-      const params = new URLSearchParams(window.location.search);
-      if (targetPage > 1) params.set("page", String(targetPage));
-      else params.delete("page");
-      router.push(params.toString() ? `/leads?${params.toString()}` : "/leads");
-    } else {
-      refresh();
-    }
   };
 
   const handleEnrich = async (lead: Lead) => {

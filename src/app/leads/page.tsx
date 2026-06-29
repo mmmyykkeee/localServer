@@ -44,17 +44,27 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const leadIds = leads.map((l) => l.id);
 
   const unreadCounts: Record<number, number> = {};
-  for (const lead of leads) {
-    const leadId = lead.id;
-    const lastViewed = lead.lastViewedAt || lead.createdAt;
-    const incomingCount = await prisma.message.count({
+  if (leadIds.length > 0) {
+    const lastViewedMap = new Map<number, Date>();
+    for (const lead of leads) {
+      lastViewedMap.set(lead.id, lead.lastViewedAt || lead.createdAt);
+    }
+
+    const incomingMessages = await prisma.message.findMany({
       where: {
-        leadId,
+        leadId: { in: leadIds },
         direction: "incoming",
-        createdAt: { gt: lastViewed },
       },
+      select: { leadId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
     });
-    if (incomingCount > 0) unreadCounts[leadId] = incomingCount;
+
+    for (const msg of incomingMessages) {
+      const lastViewed = lastViewedMap.get(msg.leadId);
+      if (lastViewed && msg.createdAt > lastViewed) {
+        unreadCounts[msg.leadId] = (unreadCounts[msg.leadId] || 0) + 1;
+      }
+    }
   }
 
   return (
