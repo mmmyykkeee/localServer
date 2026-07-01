@@ -21,16 +21,22 @@ model Lead {
   enriched      String?      @db.Text
   status        String?      @default("new")
   response      String?      @db.Text
+  score         Int?         @default(0)
+  tags          String?
+  followUpAt    DateTime?
   lastViewedAt  DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   emailDrafts   EmailDraft[]
   messages      Message[]
+  activities    Activity[]
 
   @@index([name])
   @@index([company])
   @@index([email])
   @@index([status])
+  @@index([score])
+  @@index([followUpAt])
 }
 
 model EmailDraft {
@@ -59,6 +65,8 @@ model Message {
   subject   String?
   content   String   @db.Text
   messageId String?
+  opened    Boolean  @default(false)
+  openedAt  DateTime?
   createdAt DateTime @default(now())
 
   @@index([leadId])
@@ -71,4 +79,29 @@ model DeletedMessage {
   deletedAt DateTime @default(now())
 
   @@index([messageId])
+}
+
+model Activity {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String
+  detail    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([type])
+}
+
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String
+  subject   String
+  content   String   @db.Text
+  tone      String?
+  purpose   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
 }

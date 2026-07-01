@@ -37,3 +37,13 @@ export type Message = Prisma.MessageModel
  * 
  */
 export type DeletedMessage = Prisma.DeletedMessageModel
+/**
+ * Model Activity
+ * 
+ */
+export type Activity = Prisma.ActivityModel
+/**
+ * Model EmailTemplate
+ * 
+ */
+export type EmailTemplate = Prisma.EmailTemplateModel

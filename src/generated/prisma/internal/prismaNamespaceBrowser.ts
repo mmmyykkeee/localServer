@@ -54,7 +54,9 @@ export const ModelName = {
   Lead: 'Lead',
   EmailDraft: 'EmailDraft',
   Message: 'Message',
-  DeletedMessage: 'DeletedMessage'
+  DeletedMessage: 'DeletedMessage',
+  Activity: 'Activity',
+  EmailTemplate: 'EmailTemplate'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -84,6 +86,9 @@ export const LeadScalarFieldEnum = {
   enriched: 'enriched',
   status: 'status',
   response: 'response',
+  score: 'score',
+  tags: 'tags',
+  followUpAt: 'followUpAt',
   lastViewedAt: 'lastViewedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -116,6 +121,8 @@ export const MessageScalarFieldEnum = {
   subject: 'subject',
   content: 'content',
   messageId: 'messageId',
+  opened: 'opened',
+  openedAt: 'openedAt',
   createdAt: 'createdAt'
 } as const
 
@@ -129,6 +136,31 @@ export const DeletedMessageScalarFieldEnum = {
 } as const
 
 export type DeletedMessageScalarFieldEnum = (typeof DeletedMessageScalarFieldEnum)[keyof typeof DeletedMessageScalarFieldEnum]
+
+
+export const ActivityScalarFieldEnum = {
+  id: 'id',
+  leadId: 'leadId',
+  type: 'type',
+  detail: 'detail',
+  createdAt: 'createdAt'
+} as const
+
+export type ActivityScalarFieldEnum = (typeof ActivityScalarFieldEnum)[keyof typeof ActivityScalarFieldEnum]
+
+
+export const EmailTemplateScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  subject: 'subject',
+  content: 'content',
+  tone: 'tone',
+  purpose: 'purpose',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type EmailTemplateScalarFieldEnum = (typeof EmailTemplateScalarFieldEnum)[keyof typeof EmailTemplateScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -45,6 +45,8 @@ export type MessageMinAggregateOutputType = {
   subject: string | null
   content: string | null
   messageId: string | null
+  opened: boolean | null
+  openedAt: Date | null
   createdAt: Date | null
 }
 
@@ -57,6 +59,8 @@ export type MessageMaxAggregateOutputType = {
   subject: string | null
   content: string | null
   messageId: string | null
+  opened: boolean | null
+  openedAt: Date | null
   createdAt: Date | null
 }
 
@@ -69,6 +73,8 @@ export type MessageCountAggregateOutputType = {
   subject: number
   content: number
   messageId: number
+  opened: number
+  openedAt: number
   createdAt: number
   _all: number
 }
@@ -93,6 +99,8 @@ export type MessageMinAggregateInputType = {
   subject?: true
   content?: true
   messageId?: true
+  opened?: true
+  openedAt?: true
   createdAt?: true
 }
 
@@ -105,6 +113,8 @@ export type MessageMaxAggregateInputType = {
   subject?: true
   content?: true
   messageId?: true
+  opened?: true
+  openedAt?: true
   createdAt?: true
 }
 
@@ -117,6 +127,8 @@ export type MessageCountAggregateInputType = {
   subject?: true
   content?: true
   messageId?: true
+  opened?: true
+  openedAt?: true
   createdAt?: true
   _all?: true
 }
@@ -216,6 +228,8 @@ export type MessageGroupByOutputType = {
   subject: string | null
   content: string
   messageId: string | null
+  opened: boolean
+  openedAt: Date | null
   createdAt: Date
   _count: MessageCountAggregateOutputType | null
   _avg: MessageAvgAggregateOutputType | null
@@ -251,6 +265,8 @@ export type MessageWhereInput = {
   subject?: Prisma.StringNullableFilter<"Message"> | string | null
   content?: Prisma.StringFilter<"Message"> | string
   messageId?: Prisma.StringNullableFilter<"Message"> | string | null
+  opened?: Prisma.BoolFilter<"Message"> | boolean
+  openedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   lead?: Prisma.XOR<Prisma.LeadScalarRelationFilter, Prisma.LeadWhereInput>
 }
@@ -264,6 +280,8 @@ export type MessageOrderByWithRelationInput = {
   subject?: Prisma.SortOrderInput | Prisma.SortOrder
   content?: Prisma.SortOrder
   messageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  opened?: Prisma.SortOrder
+  openedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lead?: Prisma.LeadOrderByWithRelationInput
 }
@@ -280,6 +298,8 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   subject?: Prisma.StringNullableFilter<"Message"> | string | null
   content?: Prisma.StringFilter<"Message"> | string
   messageId?: Prisma.StringNullableFilter<"Message"> | string | null
+  opened?: Prisma.BoolFilter<"Message"> | boolean
+  openedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   lead?: Prisma.XOR<Prisma.LeadScalarRelationFilter, Prisma.LeadWhereInput>
 }, "id">
@@ -293,6 +313,8 @@ export type MessageOrderByWithAggregationInput = {
   subject?: Prisma.SortOrderInput | Prisma.SortOrder
   content?: Prisma.SortOrder
   messageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  opened?: Prisma.SortOrder
+  openedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.MessageCountOrderByAggregateInput
   _avg?: Prisma.MessageAvgOrderByAggregateInput
@@ -313,6 +335,8 @@ export type MessageScalarWhereWithAggregatesInput = {
   subject?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   content?: Prisma.StringWithAggregatesFilter<"Message"> | string
   messageId?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  opened?: Prisma.BoolWithAggregatesFilter<"Message"> | boolean
+  openedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
 }
 
@@ -323,6 +347,8 @@ export type MessageCreateInput = {
   subject?: string | null
   content: string
   messageId?: string | null
+  opened?: boolean
+  openedAt?: Date | string | null
   createdAt?: Date | string
   lead: Prisma.LeadCreateNestedOneWithoutMessagesInput
 }
@@ -336,6 +362,8 @@ export type MessageUncheckedCreateInput = {
   subject?: string | null
   content: string
   messageId?: string | null
+  opened?: boolean
+  openedAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -346,6 +374,8 @@ export type MessageUpdateInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lead?: Prisma.LeadUpdateOneRequiredWithoutMessagesNestedInput
 }
@@ -359,6 +389,8 @@ export type MessageUncheckedUpdateInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -371,6 +403,8 @@ export type MessageCreateManyInput = {
   subject?: string | null
   content: string
   messageId?: string | null
+  opened?: boolean
+  openedAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -381,6 +415,8 @@ export type MessageUpdateManyMutationInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -393,6 +429,8 @@ export type MessageUncheckedUpdateManyInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -415,6 +453,8 @@ export type MessageCountOrderByAggregateInput = {
   subject?: Prisma.SortOrder
   content?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
+  opened?: Prisma.SortOrder
+  openedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -432,6 +472,8 @@ export type MessageMaxOrderByAggregateInput = {
   subject?: Prisma.SortOrder
   content?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
+  opened?: Prisma.SortOrder
+  openedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -444,6 +486,8 @@ export type MessageMinOrderByAggregateInput = {
   subject?: Prisma.SortOrder
   content?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
+  opened?: Prisma.SortOrder
+  openedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -501,6 +545,8 @@ export type MessageCreateWithoutLeadInput = {
   subject?: string | null
   content: string
   messageId?: string | null
+  opened?: boolean
+  openedAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -512,6 +558,8 @@ export type MessageUncheckedCreateWithoutLeadInput = {
   subject?: string | null
   content: string
   messageId?: string | null
+  opened?: boolean
+  openedAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -553,6 +601,8 @@ export type MessageScalarWhereInput = {
   subject?: Prisma.StringNullableFilter<"Message"> | string | null
   content?: Prisma.StringFilter<"Message"> | string
   messageId?: Prisma.StringNullableFilter<"Message"> | string | null
+  opened?: Prisma.BoolFilter<"Message"> | boolean
+  openedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
 }
 
@@ -564,6 +614,8 @@ export type MessageCreateManyLeadInput = {
   subject?: string | null
   content: string
   messageId?: string | null
+  opened?: boolean
+  openedAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -574,6 +626,8 @@ export type MessageUpdateWithoutLeadInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -585,6 +639,8 @@ export type MessageUncheckedUpdateWithoutLeadInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -596,6 +652,8 @@ export type MessageUncheckedUpdateManyWithoutLeadInput = {
   subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   content?: Prisma.StringFieldUpdateOperationsInput | string
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  opened?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  openedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -610,6 +668,8 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   subject?: boolean
   content?: boolean
   messageId?: boolean
+  opened?: boolean
+  openedAt?: boolean
   createdAt?: boolean
   lead?: boolean | Prisma.LeadDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
@@ -623,6 +683,8 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   subject?: boolean
   content?: boolean
   messageId?: boolean
+  opened?: boolean
+  openedAt?: boolean
   createdAt?: boolean
   lead?: boolean | Prisma.LeadDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
@@ -636,6 +698,8 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   subject?: boolean
   content?: boolean
   messageId?: boolean
+  opened?: boolean
+  openedAt?: boolean
   createdAt?: boolean
   lead?: boolean | Prisma.LeadDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
@@ -649,10 +713,12 @@ export type MessageSelectScalar = {
   subject?: boolean
   content?: boolean
   messageId?: boolean
+  opened?: boolean
+  openedAt?: boolean
   createdAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "leadId" | "direction" | "from" | "to" | "subject" | "content" | "messageId" | "createdAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "leadId" | "direction" | "from" | "to" | "subject" | "content" | "messageId" | "opened" | "openedAt" | "createdAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   lead?: boolean | Prisma.LeadDefaultArgs<ExtArgs>
 }
@@ -677,6 +743,8 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     subject: string | null
     content: string
     messageId: string | null
+    opened: boolean
+    openedAt: Date | null
     createdAt: Date
   }, ExtArgs["result"]["message"]>
   composites: {}
@@ -1110,6 +1178,8 @@ export interface MessageFieldRefs {
   readonly subject: Prisma.FieldRef<"Message", 'String'>
   readonly content: Prisma.FieldRef<"Message", 'String'>
   readonly messageId: Prisma.FieldRef<"Message", 'String'>
+  readonly opened: Prisma.FieldRef<"Message", 'Boolean'>
+  readonly openedAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Message", 'DateTime'>
 }
     

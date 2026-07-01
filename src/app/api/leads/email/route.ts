@@ -1,8 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
 import { prisma } from "@/lib/prisma";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const OPENROUTER_KEYS = [];
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+let keyIndex = 0;
+
+function getNextKey(): string {
+  const key = OPENROUTER_KEYS[keyIndex % OPENROUTER_KEYS.length];
+  keyIndex++;
+  return key;
+}
+
+const FREE_MODELS = [
+  "google/gemma-4-26b-a4b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-coder:free",
+  "openai/gpt-oss-20b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "google/gemma-4-31b-it:free",
+];
+
+async function callOpenRouter(prompt: string, model: string, apiKey: string): Promise<string> {
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://michaelsoft.co.ke",
+      "X-Title": "MichaelSoft Leads",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 500,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,18 +79,32 @@ Rules:
 - Do NOT state their customers have problems — instead suggest there may be an untapped opportunity
 - No emojis
 - No excessive punctuation or exclamation marks
-- Sign off as "Best regards,\nMichael\n+254704472009"`;
+- Sign off as "Best regards,\nMichael\nwww.michaelsoft.co.ke"`;
 
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 500,
-    });
+    let email = "";
+    let lastError = "";
 
-    const email = completion.choices[0]?.message?.content || "";
+    // Try each model with rotating keys
+    for (const model of FREE_MODELS) {
+      for (let attempt = 0; attempt < OPENROUTER_KEYS.length; attempt++) {
+        const apiKey = getNextKey();
+        try {
+          email = await callOpenRouter(prompt, model, apiKey);
+          if (email) break;
+        } catch (err: any) {
+          lastError = `${model} (key ...${apiKey.slice(-6)}): ${err.message}`;
+          continue;
+        }
+      }
+      if (email) break;
+    }
 
-    if (email && lead.id) {
+    if (!email) {
+      console.error("All models/keys failed:", lastError);
+      return NextResponse.json({ email: "", error: "All models failed" }, { status: 500 });
+    }
+
+    if (lead.id) {
       const draft = await prisma.emailDraft.create({
         data: {
           leadId: lead.id,
