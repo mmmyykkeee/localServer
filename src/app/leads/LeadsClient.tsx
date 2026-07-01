@@ -18,6 +18,9 @@ interface Lead {
   enriched?: string | null | undefined;
   status?: string | null;
   response?: string | null;
+  score?: number | null;
+  tags?: string | null;
+  followUpAt?: string | null;
   createdAt: string;
 }
 
@@ -133,6 +136,7 @@ export default function LeadsClient({
   pageSize = 8,
   statusFilter = "",
   unreadCounts = {},
+  initialSearch = "",
 }: {
   leads: Lead[];
   createLead: Action;
@@ -143,13 +147,17 @@ export default function LeadsClient({
   pageSize?: number;
   statusFilter?: string;
   unreadCounts?: Record<number, number>;
+  initialSearch?: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saving, setSaving] = useState(false);
   const [autoEnriching, setAutoEnriching] = useState(false);
   const [websiteSaved, setWebsiteSaved] = useState(false);
@@ -193,6 +201,41 @@ export default function LeadsClient({
   const [editForm, setEditForm] = useState({ website: "", email: "", phone: "", name: "", company: "", notes: "" });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importCsv, setImportCsv] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [showBulkSend, setShowBulkSend] = useState(false);
+  const [bulkSendSubject, setBulkSendSubject] = useState("");
+  const [bulkSendContent, setBulkSendContent] = useState("");
+  const [bulkSending, setBulkSending] = useState(false);
+  const [templates, setTemplates] = useState<Array<{ id: number; name: string; subject: string; content: string }>>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const [whatsappPhone, setWhatsappPhone] = useState("");
+  const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [whatsappLeadId, setWhatsappLeadId] = useState<number | null>(null);
+  const [whatsappSending, setWhatsappSending] = useState(false);
+  const [whatsappGenerating, setWhatsappGenerating] = useState(false);
+  const [whatsappSent, setWhatsappSent] = useState(false);
+  const [whatsappConfirmResend, setWhatsappConfirmResend] = useState(false);
+  const [sendMode, setSendMode] = useState<"email" | "whatsapp">("whatsapp");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailContent, setEmailContent] = useState("");
+  const [whatsappReply, setWhatsappReply] = useState("");
+  const [waNeedsPairing, setWaNeedsPairing] = useState(false);
+  const [waPairingPhone, setWaPairingPhone] = useState("");
+  const [waPairingCode, setWaPairingCode] = useState<string | null>(null);
+  const [waPairingLoading, setWaPairingLoading] = useState(false);
+  const [waPairingPolling, setWaPairingPolling] = useState(false);
+  const [waPairingMode, setWaPairingMode] = useState<"code" | "qr">("code");
+  const [waQrCode, setWaQrCode] = useState<string | null>(null);
+  const [sendingWhatsAppReply, setSendingWhatsAppReply] = useState(false);
+  const [deleteWhatsAppConfirmId, setDeleteWhatsAppConfirmId] = useState<number | null>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [leadActivities, setLeadActivities] = useState<Record<number, Array<{ id: number; type: string; detail: string | null; createdAt: string }>>>({});
+  const [tagInput, setTagInput] = useState("");
+  const [editingTagsId, setEditingTagsId] = useState<number | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -202,6 +245,12 @@ export default function LeadsClient({
   useEffect(() => {
     return () => { Object.values(saveTimers.current).forEach(clearTimeout); };
   }, []);
+
+  useEffect(() => {
+    setLocalLeads(leads);
+  }, [leads]);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -229,19 +278,40 @@ export default function LeadsClient({
         return;
       }
 
+      // Ctrl+I / Cmd+I — import CSV
+      if (isMod && e.key === "i") {
+        e.preventDefault();
+        setShowImport(true);
+        return;
+      }
+
+      // Ctrl+E / Cmd+E — export
+      if (isMod && e.key === "e") {
+        e.preventDefault();
+        window.location.href = "/api/leads/export";
+        return;
+      }
+
       if (e.key === "Escape") {
         setShowForm(false);
         setEditingLead(null);
         setEmailDraft(null);
         setExpandedId(null);
+        setShowImport(false);
+        setShowBulkSend(false);
+        setShowStats(false);
+        setShowTemplates(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* ─── Sync search to URL (without server refresh, resets page) ─── */
+  /* ─── Sync search to URL and trigger server-side search across ALL records ─── */
+  const lastSearchRef = useRef(search);
   useEffect(() => {
+    if (search === lastSearchRef.current) return;
+    lastSearchRef.current = search;
     const t = setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       if (search) {
@@ -250,6 +320,16 @@ export default function LeadsClient({
       } else {
         params.delete("q");
       }
+      const newUrl = params.toString() ? `/leads?${params.toString()}` : "/leads";
+      startTransition(() => { router.replace(newUrl); });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  /* ─── Sync expanded state to URL (client-side only, no server refresh) ─── */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
       if (expandedId) {
         const expandedLead = localLeads.find((l) => l.id === expandedId);
         const slug = expandedLead ? (expandedLead.company || expandedLead.name || String(expandedId)).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : String(expandedId);
@@ -261,7 +341,7 @@ export default function LeadsClient({
       window.history.replaceState(null, "", newUrl);
     }, 300);
     return () => clearTimeout(t);
-  }, [search, expandedId, leads]);
+  }, [expandedId]);
 
   /* ─── Read expanded state from URL on mount ─── */
   useEffect(() => {
@@ -295,6 +375,93 @@ export default function LeadsClient({
     return () => clearInterval(interval);
   }, []);
 
+  const OPENWA_URL = "http://localhost:2785/api";
+  const OPENWA_KEY = "owa_k1_726289b2a9627ea62066a90e387b1bf5d0cf3eea222a1f03addcda97a20e0821";
+
+  const handleRequestPairingCode = async () => {
+    if (!waPairingPhone.trim()) return;
+    setWaPairingLoading(true);
+    setWaPairingCode(null);
+    try {
+      const sessionsRes = await fetch(`${OPENWA_URL}/sessions`, { headers: { "x-api-key": OPENWA_KEY } });
+      const sessions = await sessionsRes.json();
+      const session = sessions[0];
+      if (!session) { toast("No WhatsApp session found", "error"); return; }
+
+      const phone = waPairingPhone.replace(/[\s\-\(\)\+]/g, "");
+      const num = phone.startsWith("254") ? phone : phone.startsWith("0") ? "254" + phone.slice(1) : phone;
+
+      if (session.status !== "connected" && session.status !== "ready") {
+        await fetch(`${OPENWA_URL}/sessions/${session.id}/stop`, { method: "POST", headers: { "x-api-key": OPENWA_KEY, "Content-Type": "application/json" }, signal: AbortSignal.timeout(10000) }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 2000));
+        await fetch(`${OPENWA_URL}/sessions/${session.id}/start`, { method: "POST", headers: { "x-api-key": OPENWA_KEY, "Content-Type": "application/json" }, signal: AbortSignal.timeout(60000) }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+
+      const codeRes = await fetch(`${OPENWA_URL}/sessions/${session.id}/pairing-code`, {
+        method: "POST",
+        headers: { "x-api-key": OPENWA_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: num }),
+      });
+      const codeData = await codeRes.json();
+      if (codeData.pairingCode) {
+        setWaPairingCode(codeData.pairingCode);
+        setWaPairingPolling(true);
+      } else {
+        toast(codeData.message || "Failed. Check the phone number is valid and registered on WhatsApp.", "error");
+      }
+    } catch { toast("Failed to connect to WhatsApp server", "error"); }
+    finally { setWaPairingLoading(false); }
+  };
+
+  useEffect(() => {
+    if (!waPairingPolling) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${OPENWA_URL}/sessions`, { headers: { "x-api-key": OPENWA_KEY } });
+        const sessions = await res.json();
+        const session = sessions.find((s: any) => s.status === "connected" || s.status === "ready");
+        if (session) {
+          setWaPairingPolling(false);
+          setWaPairingCode(null);
+          setWaQrCode(null);
+          setWaNeedsPairing(false);
+          toast("WhatsApp connected!", "success");
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [waPairingPolling]);
+
+  const handleRequestQRCode = async () => {
+    setWaPairingLoading(true);
+    setWaQrCode(null);
+    try {
+      const sessionsRes = await fetch(`${OPENWA_URL}/sessions`, { headers: { "x-api-key": OPENWA_KEY } });
+      const sessions = await sessionsRes.json();
+      const session = sessions[0];
+      if (!session) { toast("No WhatsApp session found", "error"); return; }
+      if (session.status !== "connected" && session.status !== "ready") {
+        await fetch(`${OPENWA_URL}/sessions/${session.id}/stop`, { method: "POST", headers: { "x-api-key": OPENWA_KEY, "Content-Type": "application/json" }, signal: AbortSignal.timeout(10000) }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 2000));
+        await fetch(`${OPENWA_URL}/sessions/${session.id}/start`, { method: "POST", headers: { "x-api-key": OPENWA_KEY, "Content-Type": "application/json" }, signal: AbortSignal.timeout(60000) }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+      for (let i = 0; i < 15; i++) {
+        const qrRes = await fetch(`${OPENWA_URL}/sessions/${session.id}/qr`, { headers: { "x-api-key": OPENWA_KEY } });
+        const qrData = await qrRes.json();
+        if (qrData.qrCode) {
+          setWaQrCode(qrData.qrCode);
+          setWaPairingPolling(true);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      toast("QR code not ready. Try again.", "error");
+    } catch { toast("Failed to connect to WhatsApp server", "error"); }
+    finally { setWaPairingLoading(false); }
+  };
+
   /* ─── Client-side search filtering with keyword extraction ─── */
   const searchQuery = search.trim().toLowerCase();
 
@@ -325,10 +492,285 @@ export default function LeadsClient({
     if (page > 1) params.set("page", String(page));
     else params.delete("page");
     const url = params.toString() ? `/leads?${params.toString()}` : "/leads";
-    router.push(url);
+    startTransition(() => {
+      router.push(url);
+    });
+  };
+
+  const goToPageSize = (size: number) => {
+    const params = new URLSearchParams(window.location.search);
+    if (size !== 10) params.set("size", String(size));
+    else params.delete("size");
+    params.delete("page");
+    const url = params.toString() ? `/leads?${params.toString()}` : "/leads";
+    startTransition(() => {
+      router.push(url);
+    });
   };
 
   const refresh = () => startTransition(() => router.refresh());
+
+  /* ─── Bulk Send ─── */
+  const handleBulkSend = async () => {
+    if (selectedIds.size === 0 || !bulkSendSubject || !bulkSendContent) return;
+    setBulkSending(true);
+    try {
+      const res = await fetch("/api/leads/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadIds: Array.from(selectedIds), subject: bulkSendSubject, html: bulkSendContent }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast(`Sent to ${data.sentCount} recipient(s)`, "success");
+        setShowBulkSend(false);
+        setBulkSendSubject("");
+        setBulkSendContent("");
+        clearSelection();
+        refresh();
+      } else {
+        toast(data.error || "Failed to send", "error");
+      }
+    } catch { toast("Failed to send", "error"); }
+    finally { setBulkSending(false); }
+  };
+
+  /* ─── Import CSV ─── */
+  const handleImport = async () => {
+    if (!importCsv.trim()) return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/leads/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv: importCsv }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast(`Imported ${data.imported} leads, ${data.skipped} skipped`);
+        setShowImport(false);
+        setImportCsv("");
+        refresh();
+      } else {
+        toast(data.error || "Import failed", "error");
+      }
+    } catch { toast("Import failed", "error"); }
+    finally { setImporting(false); }
+  };
+
+  /* ─── Templates ─── */
+  const fetchTemplates = async () => {
+    try {
+      const res = await fetch("/api/leads/templates");
+      if (res.ok) setTemplates(await res.json());
+    } catch {}
+  };
+
+  const applyTemplate = (template: { subject: string; content: string }) => {
+    setBulkSendSubject(template.subject);
+    setBulkSendContent(template.content);
+    setShowTemplates(false);
+  };
+
+  /* ─── Stats ─── */
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/leads/stats");
+      if (res.ok) setStats(await res.json());
+    } catch {}
+  };
+
+  /* ─── Activities ─── */
+  const fetchActivities = async (leadId: number) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}/activities`);
+      if (res.ok) {
+        const data = await res.json();
+        setLeadActivities((prev) => ({ ...prev, [leadId]: data }));
+      }
+    } catch {}
+  };
+
+  /* ─── Tags ─── */
+  const handleAddTag = async (leadId: number, tag: string) => {
+    const lead = localLeads.find((l) => l.id === leadId);
+    if (!lead || !tag.trim()) return;
+    const existingTags = lead.tags ? lead.tags.split(",").map((t) => t.trim()) : [];
+    if (existingTags.includes(tag.trim())) return;
+    const newTags = [...existingTags, tag.trim()].join(",");
+    const fd = new FormData();
+    fd.set("id", String(leadId));
+    fd.set("field", "tags");
+    fd.set("value", newTags);
+    await updateLead(fd);
+    setLocalLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, tags: newTags } : l));
+    setTagInput("");
+    setEditingTagsId(null);
+  };
+
+  const handleRemoveTag = async (leadId: number, tag: string) => {
+    const lead = localLeads.find((l) => l.id === leadId);
+    if (!lead) return;
+    const newTags = (lead.tags || "").split(",").map((t) => t.trim()).filter((t) => t && t !== tag).join(",");
+    const fd = new FormData();
+    fd.set("id", String(leadId));
+    fd.set("field", "tags");
+    fd.set("value", newTags);
+    await updateLead(fd);
+    setLocalLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, tags: newTags } : l));
+  };
+
+  /* ─── Follow-up ─── */
+  const handleSetFollowUp = async (leadId: number, days: number) => {
+    const followUpAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    const fd = new FormData();
+    fd.set("id", String(leadId));
+    fd.set("field", "followUpAt");
+    fd.set("value", followUpAt);
+    await updateLead(fd);
+    setLocalLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, followUpAt } : l));
+    toast(`Follow-up set for ${days} day(s)`);
+  };
+
+  /* ─── Score ─── */
+  const handleScore = async (leadId: number) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}/score`, { method: "POST" });
+      const data = await res.json();
+      if (data.score !== undefined) {
+        setLocalLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, score: data.score } : l));
+      }
+    } catch {}
+  };
+
+  /* ─── WhatsApp ─── */
+  const getAllPhones = (lead: Lead): string => {
+    const phones = new Set<string>();
+    if (lead.phone) {
+      lead.phone.split(/[,;\n]+/).forEach((p) => { const t = p.replace(/[\s\-\(\)]/g, "").trim(); if (t && t.length >= 9) phones.add(t); });
+    }
+    const enriched = parseEnriched(lead.enriched);
+    if (enriched?.phones) {
+      enriched.phones.forEach((p) => { const t = p.replace(/[\s\-\(\)]/g, "").trim(); if (t && t.length >= 9) phones.add(t); });
+    }
+    return Array.from(phones).join(", ");
+  };
+
+  const openWhatsApp = async (lead: Lead, message?: string) => {
+    const phones = getAllPhones(lead);
+    setWhatsappPhone(phones);
+    setWhatsappLeadId(lead.id);
+    setShowWhatsApp(true);
+    setSendMode("whatsapp");
+    setWhatsappGenerating(false);
+    setWhatsappSent(false);
+    setWhatsappConfirmResend(false);
+
+    if (message) {
+      // Pre-filled message from draft
+      setWhatsappMessage(message);
+      setEmailContent(message);
+      setEmailSubject("Partnership Opportunity - Michaelsoft Procurement");
+    } else {
+      // Empty - let user click generate
+      setWhatsappMessage("");
+      setEmailContent("");
+      setEmailSubject("Partnership Opportunity - Michaelsoft Procurement");
+
+      // For email tab, try to use existing draft
+      const drafts = leadDrafts[lead.id];
+      if (drafts && drafts.length > 0) {
+        const latestDraft = drafts[0];
+        setEmailContent(latestDraft.content);
+      } else {
+        // Auto-fetch drafts
+        try {
+          const res = await fetch(`/api/leads/${lead.id}/drafts`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.length > 0) setEmailContent(data[0].content);
+          }
+        } catch {}
+      }
+    }
+  };
+
+  const handleSendEmailFromModal = async () => {
+    if (!emailSubject || !emailContent || !whatsappLeadId) return;
+    const lead = localLeads.find((l) => l.id === whatsappLeadId);
+    if (!lead) return;
+    await handleSendEmail(getAllEmails(lead), emailSubject, emailContent, undefined, whatsappLeadId);
+    setShowWhatsApp(false);
+  };
+
+  const handleSendWhatsAppReply = async (lead: Lead) => {
+    if (!whatsappReply.trim()) return;
+    const phone = lead.phone?.replace(/[\s\-\(\)]/g, "").trim();
+    if (!phone) return;
+    setSendingWhatsAppReply(true);
+    try {
+      const res = await fetch("/api/leads/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, message: whatsappReply, leadId: lead.id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setWhatsappReply("");
+        fetchActivities(lead.id);
+        fetchDrafts(lead.id);
+      } else {
+        toast(data.error || "Failed to send", "error");
+      }
+    } catch { toast("Failed to send", "error"); }
+    finally { setSendingWhatsAppReply(false); }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (whatsappSent && !whatsappConfirmResend) {
+      setWhatsappConfirmResend(true);
+      return;
+    }
+    if (!whatsappPhone || !whatsappMessage) return;
+    setWhatsappSending(true);
+    setWhatsappConfirmResend(false);
+    try {
+      const phones = whatsappPhone.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean);
+      let sentCount = 0;
+      let disconnectedError = false;
+      for (const phone of phones) {
+        const res = await fetch("/api/leads/whatsapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, message: whatsappMessage, leadId: whatsappLeadId }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          sentCount++;
+        } else if (data.error && (data.error.includes("No active WhatsApp session") || data.error.includes("disconnected"))) {
+          disconnectedError = true;
+          break;
+        }
+      }
+      if (disconnectedError) {
+        setWaNeedsPairing(true);
+        setWaPairingPhone("");
+      } else if (sentCount > 0) {
+        setWhatsappSent(true);
+        setTimeout(() => {
+          setShowWhatsApp(false);
+          setWhatsappSent(false);
+        }, 1500);
+        if (whatsappLeadId) {
+          fetchActivities(whatsappLeadId);
+          fetchDrafts(whatsappLeadId);
+        }
+      } else {
+        toast("Failed to send", "error");
+      }
+    } catch { toast("Failed to send", "error"); }
+    finally { setWhatsappSending(false); }
+  };
 
   /* ─── Edit in-place ─── */
   const openEdit = (lead: Lead) => {
@@ -474,6 +916,10 @@ export default function LeadsClient({
       const data = await res.json();
       if (!data.error) {
         setLocalLeads((prev) => prev.map((l) => l.id === lead.id ? { ...l, enriched: JSON.stringify(data), email: l.email || data.emails?.[0] || null, phone: l.phone || data.phones?.[0] || null } : l));
+        // Log activity and calculate score
+        await fetch(`/api/leads/${lead.id}/activities`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "enriched", detail: `Enriched from ${lead.website}` }) });
+        await handleScore(lead.id);
+        fetchActivities(lead.id);
         toast("Lead enriched successfully");
       } else {
         toast(data.error || "Enrichment failed", "error");
@@ -551,6 +997,18 @@ export default function LeadsClient({
 
   const parseEnriched = (e: string | null | undefined): EnrichedData | null => { if (!e) return null; try { return JSON.parse(e); } catch { return null; } };
 
+  const getAllEmails = (lead: Lead): string => {
+    const emails = new Set<string>();
+    if (lead.email) {
+      lead.email.split(/[,;\n]+/).forEach((e) => { const t = e.trim(); if (t && t.includes("@")) emails.add(t); });
+    }
+    const enriched = parseEnriched(lead.enriched);
+    if (enriched?.emails) {
+      enriched.emails.forEach((e) => { const t = e.trim(); if (t && t.includes("@") && !t.includes(".webp") && !t.includes(".png")) emails.add(t); });
+    }
+    return Array.from(emails).join(", ");
+  };
+
   const fetchDrafts = async (leadId: number) => {
     try {
       const [draftsRes, messagesRes] = await Promise.all([
@@ -569,9 +1027,10 @@ export default function LeadsClient({
   };
 
   const handleSendEmail = async (to: string, subject: string, content: string, draftId?: number, leadId?: number) => {
-    if (!to) { toast("No email address for this lead", "error"); return; }
-
     const activeLeadId = leadId || draftLead?.id;
+    const lead = activeLeadId ? localLeads.find((l) => l.id === activeLeadId) : null;
+    const allEmails = lead ? getAllEmails(lead) : to;
+    if (!allEmails) { toast("No email address for this lead", "error"); return; }
 
     if (draftId) {
       const srcLeadId = activeLeadId || expandedId;
@@ -579,22 +1038,19 @@ export default function LeadsClient({
         const draft = leadDrafts[srcLeadId]?.find((d) => d.id === draftId);
         if (draft?.used) {
           setAlertMsg("This email was already sent. Send it again?");
-          setAlertOnConfirm(() => () => doSendEmail(to, subject, content, draftId, activeLeadId));
+          setAlertOnConfirm(() => () => doSendEmail(allEmails, subject, content, draftId, activeLeadId));
           return;
         }
       }
     }
 
-    if (activeLeadId) {
-      const lead = localLeads.find((l) => l.id === activeLeadId);
-      if (lead?.status === "contacted") {
-        setAlertMsg("This lead was already contacted. Send another email?");
-        setAlertOnConfirm(() => () => doSendEmail(to, subject, content, draftId, activeLeadId));
-        return;
-      }
+    if (activeLeadId && lead?.status === "contacted") {
+      setAlertMsg("This lead was already contacted. Send another email?");
+      setAlertOnConfirm(() => () => doSendEmail(allEmails, subject, content, draftId, activeLeadId));
+      return;
     }
 
-    doSendEmail(to, subject, content, draftId, activeLeadId);
+    doSendEmail(allEmails, subject, content, draftId, activeLeadId);
   };
 
   const doSendEmail = async (to: string, subject: string, content: string, draftId?: number, activeLeadId?: number) => {
@@ -626,20 +1082,21 @@ export default function LeadsClient({
   };
 
   const handleSendReply = async (lead: Lead) => {
-    if (!replyContent.trim() || !lead.email) return;
+    const allEmails = getAllEmails(lead);
+    if (!replyContent.trim() || !allEmails) return;
     setSendingReply(true);
     try {
       const html = replyContent.replace(/\n/g, "<br>");
       const res = await fetch("/api/leads/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: lead.email, subject: `Re: Partnership Opportunity - Michaelsoft Procurement`, html, leadId: lead.id }),
+        body: JSON.stringify({ to: allEmails, subject: `Re: Partnership Opportunity - Michaelsoft Procurement`, html, leadId: lead.id }),
       });
       const data = await res.json();
       if (data.ok) {
         setReplyContent("");
         await fetchDrafts(lead.id);
-        toast("Reply sent");
+        toast(`Reply sent to ${data.sentCount || 1} recipient(s)`);
       } else {
         toast(data.error || "Failed to send reply", "error");
       }
@@ -795,42 +1252,34 @@ export default function LeadsClient({
               type="text"
               placeholder="Search leads by name, company, email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSearchLoading(true);
+                if (searchTimer.current) clearTimeout(searchTimer.current);
+                searchTimer.current = setTimeout(() => setSearchLoading(false), 300);
+              }}
               className={`${inputClass} pl-10`}
             />
           </div>
 
           {/* ─── Status Filter ─── */}
-          <div className="flex items-center gap-1 shrink-0">
-            {[
-              { label: "All", value: "" },
-              { label: "New", value: "new" },
-              { label: "Contacted", value: "contacted" },
-              { label: "Unresponsive", value: "unresponsive" },
-            ].map(({ label, value }) => {
-              const active = statusFilter === value || (!statusFilter && !value);
-              return (
-                <button
-                  key={value}
-                  onClick={() => {
-                    const params = new URLSearchParams(window.location.search);
-                    if (value) params.set("s", value);
-                    else params.delete("s");
-                    params.delete("page");
-                    const url = params.toString() ? `/leads?${params.toString()}` : "/leads";
-                    router.push(url);
-                  }}
-                  className={`px-2.5 py-1.5 text-xs rounded-lg transition-all duration-150 cursor-pointer whitespace-nowrap ${
-                    active
-                      ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium"
-                      : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              const params = new URLSearchParams(window.location.search);
+              if (e.target.value) params.set("s", e.target.value);
+              else params.delete("s");
+              params.delete("page");
+              const url = params.toString() ? `/leads?${params.toString()}` : "/leads";
+              router.push(url);
+            }}
+            className="px-2.5 py-1.5 text-xs bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300 shrink-0"
+          >
+            <option value="">All Status</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="unresponsive">Unresponsive</option>
+          </select>
 
           <button
             onClick={showForm ? cancelForm : () => setShowForm(true)}
@@ -846,6 +1295,18 @@ export default function LeadsClient({
           <button onClick={async () => { setSyncing(true); setSyncStatus("idle"); try { const res = await fetch("/api/leads/sync", { method: "POST" }); const data = await res.json(); if (data.ok) { if (data.matched > 0) { setSyncStatus("caught"); setTimeout(() => setSyncStatus("idle"), 2000); refresh(); } else { setSyncStatus("no-replies"); setTimeout(() => setSyncStatus("idle"), 2000); } } else { toast(data.error || "Sync failed", "error"); } } catch { toast("Sync failed", "error"); } finally { setSyncing(false); } }} disabled={syncing} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer shrink-0 inline-flex items-center gap-1.5 disabled:opacity-50 ${syncStatus === "no-replies" ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800" : syncStatus === "caught" ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800" : "text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"}`}>
             {syncing ? <div className="w-3.5 h-3.5 border border-neutral-300 dark:border-neutral-600 border-t-neutral-600 dark:border-t-neutral-300 rounded-full animate-spin" /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}
             {syncing ? "Syncing..." : syncStatus === "no-replies" ? "No new replies" : syncStatus === "caught" ? "Caught replies" : "Sync replies"}
+          </button>
+          <button onClick={() => { setShowImport(true); }} className="px-4 py-2 text-xs font-medium rounded-lg text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-200 cursor-pointer shrink-0 inline-flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            Import
+          </button>
+          <a href="/api/leads/export" className="px-4 py-2 text-xs font-medium rounded-lg text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-200 cursor-pointer shrink-0 inline-flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Export
+          </a>
+          <button onClick={() => { fetchStats(); setShowStats(!showStats); }} className="px-4 py-2 text-xs font-medium rounded-lg text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-200 cursor-pointer shrink-0 inline-flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            Stats
           </button>
         </div>
 
@@ -910,6 +1371,13 @@ export default function LeadsClient({
             </span>
             <div className="ml-auto flex items-center gap-2">
               <button
+                onClick={() => { fetchTemplates(); setShowBulkSend(true); }}
+                className="px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                Send email
+              </button>
+              <button
                 onClick={handleBulkEnrich}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-all duration-150 cursor-pointer disabled:opacity-40 inline-flex items-center gap-1.5"
@@ -942,7 +1410,7 @@ export default function LeadsClient({
         )}
 
         {/* ─── Leads List ─── */}
-        {isPending ? (
+        {isPending || searchLoading ? (
           <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}</div>
         ) : localLeads.length === 0 ? (
           /* ─── Empty State ─── */
@@ -1056,7 +1524,28 @@ export default function LeadsClient({
                             at {searchQuery ? <HighlightText text={lead.company} query={search} /> : lead.company}
                           </span>
                         )}
+                        {lead.score != null && lead.score > 0 && (
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${lead.score >= 70 ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400" : lead.score >= 40 ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400" : "bg-neutral-100 dark:bg-neutral-800 text-neutral-400"}`}>{lead.score}</span>
+                        )}
+                        {mounted && lead.followUpAt && new Date(lead.followUpAt) <= new Date() && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400">Follow up</span>
+                        )}
                       </div>
+                      {lead.tags && (
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {lead.tags.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => (
+                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 inline-flex items-center gap-0.5">
+                              {tag}
+                              <button onClick={() => handleRemoveTag(lead.id, tag)} className="text-neutral-400 hover:text-red-500 cursor-pointer">&times;</button>
+                            </span>
+                          ))}
+                          {editingTagsId === lead.id ? (
+                            <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { handleAddTag(lead.id, tagInput); setEditingTagsId(null); } if (e.key === "Escape") setEditingTagsId(null); }} onBlur={() => { if (tagInput) handleAddTag(lead.id, tagInput); setEditingTagsId(null); }} className="w-16 text-[10px] px-1 py-0.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded" autoFocus placeholder="tag" />
+                          ) : (
+                            <button onClick={() => setEditingTagsId(lead.id)} className="text-[10px] text-neutral-400 hover:text-neutral-600 cursor-pointer">+tag</button>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-4 mt-1 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
                         {lead.email && (
                           <span>{searchQuery ? <HighlightText text={lead.email} query={search} /> : lead.email}</span>
@@ -1079,21 +1568,40 @@ export default function LeadsClient({
 
                     <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                       {lead.website && (
-                        <button onClick={() => handleEnrich(lead)} disabled={enrichingId === lead.id} title="Enrich this lead" className="px-2.5 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer disabled:opacity-40 inline-flex items-center gap-1">
-                          {enrichingId === lead.id ? <><div className="w-3 h-3 border border-neutral-300 dark:border-neutral-600 border-t-neutral-600 dark:border-t-neutral-300 rounded-full animate-spin" />Enriching...</> : "Enrich"}
+                        <button
+                          onClick={() => handleEnrich(lead)}
+                          disabled={enrichingId === lead.id}
+                          title="Enrich this lead"
+                          className={`px-2.5 py-1 text-xs rounded-md transition-all duration-150 cursor-pointer inline-flex items-center gap-1 disabled:opacity-70 ${
+                            lead.enriched
+                              ? "text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950"
+                              : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"
+                          }`}
+                        >
+                          {enrichingId === lead.id ? (
+                            <><div className="w-3 h-3 border border-neutral-300 dark:border-neutral-600 border-t-neutral-600 dark:border-t-neutral-300 rounded-full animate-spin" />Enriching...</>
+                          ) : lead.enriched ? (
+                            "Re-enrich"
+                          ) : (
+                            "Enrich"
+                          )}
                         </button>
                       )}
-                      <button onClick={() => handleGenerateEmail(lead)} disabled={generating === lead.id} className="px-2.5 py-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer disabled:opacity-40">
+                      <button onClick={() => handleGenerateEmail(lead)} disabled={generating === lead.id || !lead.enriched} className={`px-2.5 py-1 text-xs rounded-md transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${lead.enriched ? "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600" : "text-neutral-300 dark:text-neutral-600 border border-neutral-100 dark:border-neutral-800"}`}>
                         {generating === lead.id ? <Spinner show /> : "Draft email"}
                       </button>
                       <button onClick={() => (isEditing ? cancelEdit() : openEdit(lead))} className={`px-2.5 py-1 text-xs rounded-md border transition-all duration-150 cursor-pointer ${isEditing ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-600" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"}`}>
                         {isEditing ? "Done" : "Edit"}
                       </button>
+                      <button onClick={() => openWhatsApp(lead)} disabled={!lead.phone} className="px-2.5 py-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 border border-emerald-200 dark:border-emerald-900 hover:border-emerald-300 dark:hover:border-emerald-700 rounded-md transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        WhatsApp
+                      </button>
                       <button onClick={() => handleDelete(lead.id)} className="px-2.5 py-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 border border-red-200 dark:border-red-900 hover:border-red-300 dark:hover:border-red-700 rounded-md transition-all duration-150 cursor-pointer">
                         Delete
                       </button>
                       <button
-                        onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next) { setUnreadIds((prev) => { const next2 = new Set(prev); next2.delete(lead.id); return next2; }); fetch(`/api/leads/${lead.id}/view`, { method: "POST" }); if (!leadDrafts[lead.id]) fetchDrafts(lead.id); } }}
+                        onClick={() => { const next = isExpanded ? null : lead.id; setExpandedId(next); if (next) { setUnreadIds((prev) => { const next2 = new Set(prev); next2.delete(lead.id); return next2; }); fetch(`/api/leads/${lead.id}/view`, { method: "POST" }); fetchDrafts(lead.id); } }}
                         className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer"
                       >
                         <svg className={`w-4 h-4 transition-transform duration-150 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1274,7 +1782,11 @@ export default function LeadsClient({
                                           <button onClick={() => { setEditingDraftId(draft.id); setEditingDraftContent(draft.content); }} className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer">Edit</button>
                                           <button onClick={() => setExpandedDraftId(isDraftExpanded ? null : draft.id)} className="px-2 py-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-all duration-150 cursor-pointer">{isDraftExpanded ? "Show less" : "Show more"}</button>
                                           <button onClick={async () => { setDraftCopiedId(draft.id); await navigator.clipboard.writeText(draft.content); await fetch(`/api/leads/draft/${draft.id}/use`, { method: "POST" }); setTimeout(() => setDraftCopiedId(null), 1500); }} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${draftCopiedId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"}`}>{draftCopiedId === draft.id ? <><TickIcon />Copied</> : "Copy"}</button>
-                                          <button onClick={() => handleSendEmail(lead.email || "", `Partnership Opportunity - Michaelsoft Procurement`, draft.content, draft.id, lead.id)} disabled={sendingEmail} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${sentEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : sendingEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 border-neutral-200 dark:border-neutral-700 hover:border-emerald-300 dark:hover:border-emerald-700"}`}>{sendingEmailId === draft.id ? <div className="w-3 h-3 border border-emerald-300 border-t-emerald-600 rounded-full animate-spin" /> : sentEmailId === draft.id ? <TickIcon /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}{sentEmailId === draft.id ? "Sent" : "Send"}</button>
+                                          <button onClick={() => handleSendEmail(getAllEmails(lead), `Partnership Opportunity - Michaelsoft Procurement`, draft.content, draft.id, lead.id)} disabled={sendingEmail} className={`px-2 py-1 text-xs rounded-md border transition-all duration-200 cursor-pointer inline-flex items-center gap-1 ${sentEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : sendingEmailId === draft.id ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "text-neutral-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 border-neutral-200 dark:border-neutral-700 hover:border-emerald-300 dark:hover:border-emerald-700"}`}>{sendingEmailId === draft.id ? <div className="w-3 h-3 border border-emerald-300 border-t-emerald-600 rounded-full animate-spin" /> : sentEmailId === draft.id ? <TickIcon /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}{sentEmailId === draft.id ? "Sent" : "Send"}</button>
+                                          <button onClick={() => openWhatsApp(lead, draft.content)} disabled={!lead.phone} className="px-2 py-1 text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 hover:border-emerald-400 dark:hover:border-emerald-500 rounded-md transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center gap-1">
+                                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                            WhatsApp
+                                          </button>
                                         </>
                                       )}
                                     </div>
@@ -1285,12 +1797,41 @@ export default function LeadsClient({
                           </div>
                         )}
 
-                        {/* ─── Conversation Thread ─── */}
-                        {leadMessages[lead.id] && leadMessages[lead.id].length > 1 && (
+                        {/* ─── Follow-up & Actions ─── */}
+                        <div className="mt-4 flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-neutral-500 dark:text-neutral-400">Follow-up:</span>
+                          {[3, 7, 14, 30].map((days) => (
+                            <button key={days} onClick={() => handleSetFollowUp(lead.id, days)} className="px-2 py-1 text-[10px] rounded border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-500 cursor-pointer">{days}d</button>
+                          ))}
+                          <button onClick={() => handleScore(lead.id)} className="px-2 py-1 text-[10px] rounded border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-500 cursor-pointer ml-2">Score</button>
+                          {lead.followUpAt && (
+                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500">Due: {new Date(lead.followUpAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
+
+                        {/* ─── Activity Timeline ─── */}
+                        {leadActivities[lead.id] && leadActivities[lead.id].length > 0 && (
                           <div className="mt-4">
-                            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Conversation ({leadMessages[lead.id].length - 1} replies)</span>
+                            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Activity ({leadActivities[lead.id].length})</span>
+                            <div className="space-y-1">
+                              {leadActivities[lead.id].slice(0, 5).map((act) => (
+                                <div key={act.id} className="flex items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${act.type === "email_sent" ? "bg-emerald-400" : act.type === "enriched" ? "bg-purple-400" : act.type === "viewed" ? "bg-blue-400" : "bg-neutral-300"}`} />
+                                  <span>{act.type.replace(/_/g, " ")}</span>
+                                  {act.detail && <span className="text-neutral-400 dark:text-neutral-500 truncate">— {act.detail}</span>}
+                                  <span className="ml-auto text-neutral-300 dark:text-neutral-600">{new Date(act.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ─── Email Conversations ─── */}
+                        {leadMessages[lead.id] && leadMessages[lead.id].filter((m) => m.subject !== "WhatsApp").length > 0 && (
+                          <div className="mt-4">
+                            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">Email Conversations ({leadMessages[lead.id].filter((m) => m.subject !== "WhatsApp").length})</span>
                             <div className="space-y-3">
-                              {leadMessages[lead.id].slice(1).map((msg) => (
+                              {leadMessages[lead.id].filter((m) => m.subject !== "WhatsApp").map((msg) => (
                                 <div key={msg.id} className={`relative group transition-all duration-300 ${fadingId === msg.id ? "animate-fade-out" : ""} ${msg.direction === "outgoing" ? "ml-4" : "mr-4"}`}>
                                   <div className={`rounded-lg p-3 text-xs ${msg.direction === "outgoing" ? "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800" : "bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700"}`}>
                                     <div className="flex items-center gap-2 mb-1.5">
@@ -1298,6 +1839,7 @@ export default function LeadsClient({
                                         {msg.direction === "outgoing" ? "Sent" : "Received"}
                                       </span>
                                       <span className="text-neutral-400 dark:text-neutral-500">{msg.from}</span>
+                                      {msg.subject && <span className="text-neutral-400 dark:text-neutral-500">Re: {msg.subject}</span>}
                                       <span className="text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                                       {deleteConfirmId === msg.id ? (
                                         <span className="inline-flex items-center gap-1 ml-1">
@@ -1329,6 +1871,48 @@ export default function LeadsClient({
                             </div>
                           </div>
                         )}
+
+                        {/* ─── WhatsApp Chats ─── */}
+                        {leadMessages[lead.id] && leadMessages[lead.id].filter((m) => m.subject === "WhatsApp").length > 0 && (
+                          <div className="mt-4">
+                            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 block mb-2">WhatsApp Chats ({leadMessages[lead.id].filter((m) => m.subject === "WhatsApp").length})</span>
+                            <div className="space-y-2">
+                              {leadMessages[lead.id].filter((m) => m.subject === "WhatsApp").map((msg) => (
+                                <div key={msg.id} className={`relative group flex items-start gap-2 p-2 rounded-lg ${msg.direction === "incoming" ? "bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800" : "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800"} transition-all duration-300 ${fadingId === msg.id ? "animate-fade-out" : ""}`}>
+                                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${msg.direction === "incoming" ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400" : "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400"}`}>
+                                        {msg.direction === "incoming" ? "Received" : "Sent"}
+                                      </span>
+                                      <span className="text-[10px] text-neutral-400 dark:text-neutral-500">{msg.direction === "incoming" ? `from ${(msg.from || "").replace(/@.*/, "")}` : `to ${(msg.to || "").replace(/@.*/, "")}`}</span>
+                                      <span className="text-[10px] text-neutral-300 dark:text-neutral-600 ml-auto">{new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                    </div>
+                                    <p className="text-xs text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{msg.content}</p>
+                                  </div>
+                                  {deleteWhatsAppConfirmId === msg.id ? (
+                                    <span className="inline-flex items-center gap-1 shrink-0">
+                                      <button onClick={async () => { setFadingId(msg.id); await fetch(`/api/leads/messages/${msg.id}`, { method: "DELETE" }); setDeleteWhatsAppConfirmId(null); setTimeout(() => { setLeadMessages((prev) => ({ ...prev, [lead.id]: (prev[lead.id] || []).filter((m) => m.id !== msg.id) })); setFadingId(null); }, 300); }} className="text-[10px] font-medium text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded cursor-pointer">Delete</button>
+                                      <button onClick={() => setDeleteWhatsAppConfirmId(null)} className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-0.5 rounded cursor-pointer">Cancel</button>
+                                    </span>
+                                  ) : (
+                                    <button onClick={() => setDeleteWhatsAppConfirmId(msg.id)} className="opacity-0 group-hover:opacity-100 text-neutral-300 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all cursor-pointer shrink-0" title="Delete">
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {/* WhatsApp Reply Input */}
+                            <div className="mt-3 flex gap-2">
+                              <textarea value={whatsappReply} onChange={(e) => setWhatsappReply(e.target.value)} className={`${inputClass} resize-none flex-1`} rows={2} placeholder="Reply on WhatsApp..." />
+                              <button onClick={() => handleSendWhatsAppReply(lead)} disabled={sendingWhatsAppReply || !whatsappReply.trim()} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 self-end inline-flex items-center gap-1.5">
+                                {sendingWhatsAppReply ? <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" /> : <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>}
+                                Reply
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1339,51 +1923,71 @@ export default function LeadsClient({
         )}
 
         {/* ─── Pagination ─── */}
-        {totalPages > 1 && (
-          <nav className="mt-8 flex items-center justify-center gap-2" aria-label="Pagination">
-            <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent dark:disabled:hover:bg-transparent"
-            >
-              Previous
-            </button>
+        {totalCount > 0 && (
+          <div className="mt-8 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+              <span>Show</span>
+              <select
+                value={pageSize}
+                onChange={(e) => goToPageSize(Number(e.target.value))}
+                className="px-2 py-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs text-neutral-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300"
+              >
+                {[10, 25, 50, 100].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <span>per page</span>
+              <span className="text-neutral-300 dark:text-neutral-600 mx-1">|</span>
+              <span>{(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}</span>
+            </div>
 
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              let pageNum: number;
-              if (totalPages <= 7) {
-                pageNum = i + 1;
-              } else if (currentPage <= 4) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 3) {
-                pageNum = totalPages - 6 + i;
-              } else {
-                pageNum = currentPage - 3 + i;
-              }
-
-              return (
+            {totalPages > 1 && (
+              <nav className="flex items-center gap-1.5" aria-label="Pagination">
                 <button
-                  key={pageNum}
-                  onClick={() => goToPage(pageNum)}
-                  className={`w-8 h-8 text-xs rounded-lg transition-all duration-150 cursor-pointer ${
-                    pageNum === currentPage
-                      ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium"
-                      : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  }`}
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="px-2.5 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-default"
                 >
-                  {pageNum}
+                  Prev
                 </button>
-              );
-            })}
 
-            <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent dark:disabled:hover:bg-transparent"
-            >
-              Next
-            </button>
-          </nav>
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 7) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 4) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 3) {
+                    pageNum = totalPages - 6 + i;
+                  } else {
+                    pageNum = currentPage - 3 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`w-8 h-8 text-xs rounded-lg transition-all duration-150 cursor-pointer ${
+                        pageNum === currentPage
+                          ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium"
+                          : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className="px-2.5 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-default"
+                >
+                  Next
+                </button>
+              </nav>
+            )}
+          </div>
         )}
 
         {/* ─── Custom Alert Modal ─── */}
@@ -1420,7 +2024,10 @@ export default function LeadsClient({
               <div className="px-6 py-4">
                 <div className="mb-4">
                   <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">To</label>
-                  <input type="email" value={draftLead?.email || ""} onChange={(e) => { if (draftLead) setDraftLead({ ...draftLead, email: e.target.value }); }} className={inputClass} placeholder="recipient@email.com" />
+                  <input type="email" value={draftLead ? getAllEmails(draftLead) : ""} onChange={(e) => { if (draftLead) setDraftLead({ ...draftLead, email: e.target.value }); }} className={inputClass} placeholder="recipient@email.com" />
+                  {draftLead && parseEnriched(draftLead.enriched)?.emails && parseEnriched(draftLead.enriched)!.emails.length > 1 && (
+                    <p className="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">Includes {parseEnriched(draftLead.enriched)!.emails.length} enriched email(s)</p>
+                  )}
                 </div>
                 <div className="mb-4">
                   <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-2">Tone</label>
@@ -1463,13 +2070,283 @@ export default function LeadsClient({
                     <>
                       <button onClick={() => setEditingModalDraft(true)} className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-all duration-200 cursor-pointer">Edit</button>
                       <button onClick={async () => { setCopied(true); await navigator.clipboard.writeText(emailDraft || ""); if (lastDraftId) { await fetch(`/api/leads/draft/${lastDraftId}/use`, { method: "POST" }); } setTimeout(() => setCopied(false), 1500); }} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${copied ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"}`}>{copied ? <><TickIcon />Copied</> : "Copy"}</button>
-                      <button onClick={() => handleSendEmail(draftLead?.email || "", `Partnership Opportunity - Michaelsoft Procurement`, emailDraft || "", lastDraftId || undefined)} disabled={sendingEmail || !draftLead?.email} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${sentEmailId === lastDraftId ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-white dark:text-neutral-900 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600"} disabled:opacity-40`}>{sendingEmail ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Sending...</> : sentEmailId === lastDraftId ? <><TickIcon className="text-emerald-600 dark:text-emerald-400" />Sent</> : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>Send email</>}
+                      <button onClick={() => handleSendEmail(draftLead ? getAllEmails(draftLead) : "", `Partnership Opportunity - Michaelsoft Procurement`, emailDraft || "", lastDraftId || undefined, draftLead?.id)} disabled={sendingEmail || !draftLead} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${sentEmailId === lastDraftId ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950" : "text-white dark:text-neutral-900 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600"} disabled:opacity-40`}>{sendingEmail ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Sending...</> : sentEmailId === lastDraftId ? <><TickIcon className="text-emerald-600 dark:text-emerald-400" />Sent</> : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>Send email</>}
                       </button>
                       <button onClick={() => handleGenerateEmail(draftLead)} disabled={generating === draftLead.id || regenerating} className="px-3 py-1.5 text-xs font-medium text-white dark:text-neutral-900 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 rounded-lg transition-colors duration-150 cursor-pointer disabled:opacity-40">Regenerate</button>
+                      <button onClick={() => draftLead && openWhatsApp(draftLead, emailDraft || "")} disabled={!draftLead?.phone || !emailDraft} className="px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Send via WhatsApp
+                      </button>
                     </>
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Stats Dashboard ─── */}
+        {showStats && stats && (
+          <div className="mb-6 p-4 border border-neutral-200 dark:border-neutral-800 rounded-xl dark:bg-neutral-900">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Dashboard</h3>
+              <button onClick={() => setShowStats(false)} className="text-neutral-400 hover:text-neutral-600 cursor-pointer"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+              {[
+                { label: "Total", value: stats.total, color: "text-neutral-900 dark:text-neutral-100" },
+                { label: "New", value: stats.new, color: "text-blue-600 dark:text-blue-400" },
+                { label: "Contacted", value: stats.contacted, color: "text-emerald-600 dark:text-emerald-400" },
+                { label: "Enriched", value: stats.enriched, color: "text-purple-600 dark:text-purple-400" },
+                { label: "Emails Sent", value: stats.emailsSent, color: "text-orange-600 dark:text-orange-400" },
+                { label: "Open Rate", value: `${stats.openRate}%`, color: "text-cyan-600 dark:text-cyan-400" },
+                { label: "Follow-up Due", value: stats.followUpDue, color: stats.followUpDue > 0 ? "text-red-600 dark:text-red-400" : "text-neutral-400" },
+                { label: "Avg Score", value: stats.avgScore, color: "text-amber-600 dark:text-amber-400" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="text-center p-2 rounded-lg bg-neutral-50 dark:bg-neutral-800">
+                  <div className={`text-lg font-semibold ${color}`}>{value}</div>
+                  <div className="text-[10px] text-neutral-400 dark:text-neutral-500">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Import CSV Modal ─── */}
+        {showImport && (
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl max-w-lg w-full p-6">
+              <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-3">Import leads from CSV</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">Paste CSV with headers: name, company, email, phone, website</p>
+              <textarea value={importCsv} onChange={(e) => setImportCsv(e.target.value)} className={`${inputClass} resize-none font-mono text-xs`} rows={8} placeholder={`name,company,email,phone,website\nAcme Corp,Acme Inc,info@acme.com,+254700000000,https://acme.com`} />
+              <div className="flex gap-2 mt-4">
+                <button onClick={handleImport} disabled={importing || !importCsv.trim()} className="px-4 py-2 text-xs font-medium text-white bg-neutral-900 dark:bg-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-40 cursor-pointer">{importing ? "Importing..." : "Import"}</button>
+                <button onClick={() => { setShowImport(false); setImportCsv(""); }} className="px-4 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer">Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Bulk Send Modal ─── */}
+        {showBulkSend && (
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl max-w-lg w-full p-6">
+              <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Bulk send to {selectedIds.size} leads</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">Sends to all email addresses (main + enriched) for each selected lead.</p>
+              <div className="mb-3">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Subject</label>
+                <input type="text" value={bulkSendSubject} onChange={(e) => setBulkSendSubject(e.target.value)} className={inputClass} placeholder="Email subject" />
+              </div>
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400">Content</label>
+                  <button onClick={() => { fetchTemplates(); setShowTemplates(!showTemplates); }} className="text-xs text-neutral-400 hover:text-neutral-600 cursor-pointer">Templates</button>
+                </div>
+                {showTemplates && templates.length > 0 && (
+                  <div className="mb-2 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg max-h-32 overflow-auto">
+                    {templates.map((t) => (
+                      <button key={t.id} onClick={() => applyTemplate(t)} className="block w-full text-left px-2 py-1 text-xs text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded cursor-pointer">{t.name}</button>
+                    ))}
+                  </div>
+                )}
+                <textarea value={bulkSendContent} onChange={(e) => setBulkSendContent(e.target.value)} className={`${inputClass} resize-none`} rows={6} placeholder="Email content..." />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleBulkSend} disabled={bulkSending || !bulkSendSubject || !bulkSendContent} className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-40 cursor-pointer">{bulkSending ? "Sending..." : `Send to ${selectedIds.size} leads`}</button>
+                <button onClick={() => { setShowBulkSend(false); setBulkSendSubject(""); setBulkSendContent(""); }} className="px-4 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer">Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Send Modal (Email + WhatsApp) ─── */}
+        {showWhatsApp && (
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl max-w-lg w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{waNeedsPairing ? "Connect WhatsApp" : "Send Message"}</h3>
+                <button onClick={() => { setShowWhatsApp(false); setWhatsappPhone(""); setWhatsappMessage(""); setEmailContent(""); setEmailSubject(""); setWaNeedsPairing(false); setWaPairingCode(null); setWaQrCode(null); setWaPairingPolling(false); }} className="text-neutral-400 hover:text-neutral-600 cursor-pointer">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {waNeedsPairing ? (
+                /* ─── Connect WhatsApp (Code + QR tabs) ─── */
+                <div>
+                  <div className="flex gap-1 mb-4 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+                    <button onClick={() => { setWaPairingMode("code"); setWaPairingCode(null); setWaQrCode(null); setWaPairingPolling(false); }} className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${waPairingMode === "code" ? "bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 shadow-sm" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"}`}>
+                      Link via Code
+                    </button>
+                    <button onClick={() => { setWaPairingMode("qr"); setWaPairingCode(null); setWaQrCode(null); setWaPairingPolling(false); }} className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${waPairingMode === "qr" ? "bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 shadow-sm" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"}`}>
+                      Link via QR Code
+                    </button>
+                  </div>
+
+                  {waPairingMode === "code" ? (
+                    <div>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">Enter your phone number to get a pairing code, then enter it on your phone.</p>
+                      <div className="mb-3">
+                        <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Your WhatsApp phone number</label>
+                        <input type="tel" value={waPairingPhone} onChange={(e) => setWaPairingPhone(e.target.value)} className={inputClass} placeholder="254711749001" />
+                      </div>
+                      <button onClick={handleRequestPairingCode} disabled={waPairingLoading || !waPairingPhone.trim()} className="w-full px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 inline-flex items-center justify-center gap-1.5 mb-3">
+                        {waPairingLoading ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Starting session...</> : "Get Pairing Code"}
+                      </button>
+                      {waPairingCode && (
+                        <div className="p-4 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-700 rounded-lg text-center">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Enter this code on your phone:</p>
+                          <p className="text-3xl font-mono font-bold text-neutral-900 dark:text-neutral-100 tracking-[0.3em] mb-2">{waPairingCode}</p>
+                          <p className="text-[10px] text-neutral-400 dark:text-neutral-500">WhatsApp &rarr; Settings &rarr; Linked Devices &rarr; Link a Device &rarr; Enter code</p>
+                          {waPairingPolling && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 animate-pulse">Waiting for connection...</p>}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">Scan this QR code with WhatsApp on your phone.</p>
+                      {!waQrCode ? (
+                        <button onClick={handleRequestQRCode} disabled={waPairingLoading} className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 inline-flex items-center gap-1.5 mb-3">
+                          {waPairingLoading ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Starting session...</> : "Generate QR Code"}
+                        </button>
+                      ) : (
+                        <>
+                          <div className="inline-block p-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg mb-3">
+                            <img src={waQrCode} alt="WhatsApp QR Code" className="w-48 h-48" />
+                          </div>
+                          <p className="text-[10px] text-neutral-400 dark:text-neutral-500">WhatsApp &rarr; Settings &rarr; Linked Devices &rarr; Link a Device &rarr; Scan QR</p>
+                          {waPairingPolling && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 animate-pulse">Waiting for connection...</p>}
+                          <button onClick={handleRequestQRCode} disabled={waPairingLoading} className="mt-2 text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer">Refresh QR Code</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <button onClick={() => { setWaNeedsPairing(false); setWaPairingCode(null); setWaQrCode(null); setWaPairingPolling(false); }} className="mt-3 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer">&larr; Back to send</button>
+                </div>
+              ) : (<>
+              {/* Mode tabs */}
+              <div className="flex gap-1 mb-4 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+                <button onClick={() => setSendMode("whatsapp")} className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${sendMode === "whatsapp" ? "bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 shadow-sm" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"}`}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    WhatsApp
+                  </span>
+                </button>
+                <button onClick={() => setSendMode("email")} className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${sendMode === "email" ? "bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 shadow-sm" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"}`}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    Email
+                  </span>
+                </button>
+              </div>
+
+              {/* Phone numbers (WhatsApp only) */}
+              {sendMode === "whatsapp" && (
+                <div className="mb-3">
+                  <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Phone Number(s)</label>
+                  <input type="tel" value={whatsappPhone} onChange={(e) => setWhatsappPhone(e.target.value)} className={inputClass} placeholder="254117490019" />
+                  {whatsappPhone.includes(",") && (
+                    <p className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">Will send to {whatsappPhone.split(",").filter(Boolean).length} number(s)</p>
+                  )}
+                </div>
+              )}
+
+              {/* Email recipients (Email only) */}
+              {sendMode === "email" && (
+                <div className="mb-3">
+                  <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">To</label>
+                  <input type="email" value={whatsappLeadId ? getAllEmails(localLeads.find((l) => l.id === whatsappLeadId) || ({} as Lead)) : ""} readOnly className={`${inputClass} bg-neutral-50 dark:bg-neutral-800`} />
+                </div>
+              )}
+
+              {/* Message content */}
+              <div className="mb-3">
+                {sendMode === "email" && (
+                  <div className="mb-2">
+                    <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Subject</label>
+                    <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className={inputClass} placeholder="Email subject" />
+                  </div>
+                )}
+
+                {/* Tone & Purpose for WhatsApp */}
+                {sendMode === "whatsapp" && (
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Tone</label>
+                      <select value={tone} onChange={(e) => setTone(e.target.value)} className={inputClass}>
+                        <option value="professional and friendly">Professional & Friendly</option>
+                        <option value="casual">Casual</option>
+                        <option value="formal">Formal</option>
+                        <option value="warm">Warm</option>
+                        <option value="direct">Direct</option>
+                        <option value="persuasive">Persuasive</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Purpose</label>
+                      <input type="text" value={purpose} onChange={(e) => setPurpose(e.target.value)} className={inputClass} placeholder="e.g. introduce procurement tool" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400">{sendMode === "whatsapp" ? "Message" : "Content"}</label>
+                  {sendMode === "whatsapp" && (
+                    <button
+                      onClick={async () => {
+                        const lead = localLeads.find((l) => l.id === whatsappLeadId);
+                        if (!lead) return;
+                        setWhatsappGenerating(true);
+                        setWhatsappMessage("");
+                        try {
+                          const res = await fetch("/api/leads/whatsapp/draft", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ lead, tone, purpose }),
+                          });
+                          const data = await res.json();
+                          if (data.message) setWhatsappMessage(data.message);
+                        } catch {}
+                        finally { setWhatsappGenerating(false); }
+                      }}
+                      disabled={whatsappGenerating}
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 cursor-pointer disabled:opacity-40"
+                    >
+                      {whatsappGenerating ? "Generating..." : "Generate with AI"}
+                    </button>
+                  )}
+                </div>
+
+                {whatsappGenerating ? (
+                  <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 space-y-2 animate-pulse">
+                    <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-full" />
+                    <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-4/5" />
+                    <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
+                  </div>
+                ) : (
+                  <textarea
+                    value={sendMode === "whatsapp" ? whatsappMessage : emailContent}
+                    onChange={(e) => { sendMode === "whatsapp" ? setWhatsappMessage(e.target.value) : setEmailContent(e.target.value); }}
+                    className={`${inputClass} resize-none`}
+                    rows={sendMode === "whatsapp" ? 5 : 8}
+                    placeholder={sendMode === "whatsapp" ? "Click 'Generate with AI' or type your message..." : "Email content..."}
+                  />
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                {sendMode === "whatsapp" ? (
+                  <button onClick={handleSendWhatsApp} disabled={whatsappSending || !whatsappPhone || !whatsappMessage || whatsappGenerating} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${whatsappSent ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950" : whatsappConfirmResend ? "text-amber-700 bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700" : "text-white bg-emerald-600 hover:bg-emerald-700"} disabled:opacity-40`}>
+                    {whatsappSending ? <><div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />Sending...</> : whatsappSent ? <><TickIcon className="text-emerald-600" />Sent</> : whatsappConfirmResend ? "Confirm Resend?" : "Send WhatsApp"}
+                  </button>
+                ) : (
+                  <button onClick={handleSendEmailFromModal} disabled={sendingEmail || !emailSubject || !emailContent || whatsappGenerating} className="px-4 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5">
+                    {sendingEmail ? "Sending..." : "Send Email"}
+                  </button>
+                )}
+                <button onClick={() => { setShowWhatsApp(false); setWhatsappPhone(""); setWhatsappMessage(""); setEmailContent(""); setEmailSubject(""); }} className="px-4 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer">Cancel</button>
+              </div>
+              </>)}
             </div>
           </div>
         )}

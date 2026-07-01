@@ -4,11 +4,10 @@ import LeadsClient from "./LeadsClient";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 8;
-
-export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; s?: string }> }) {
-  const { q, page, s } = await searchParams;
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; s?: string; size?: string }> }) {
+  const { q, page, s, size } = await searchParams;
   const currentPage = Math.max(1, Number(page) || 1);
+  const PAGE_SIZE = Math.max(1, Math.min(100, Number(size) || 10));
   const statusFilter = s === "contacted" || s === "unresponsive" ? s : "";
 
   const conditions: Record<string, unknown>[] = [];
@@ -78,6 +77,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       pageSize={PAGE_SIZE}
       statusFilter={statusFilter}
       unreadCounts={unreadCounts}
+      initialSearch={q || ""}
     />
   );
 }
