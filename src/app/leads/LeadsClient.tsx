@@ -706,7 +706,7 @@ export default function LeadsClient({
   const handleSendWhatsAppReply = async (lead: Lead) => {
     if (!whatsappReply.trim()) return;
     const phone = lead.phone?.replace(/[\s\-\(\)]/g, "").trim();
-    if (!phone) return;
+    if (!phone) { toast("No phone number for this lead", "error"); return; }
     setSendingWhatsAppReply(true);
     try {
       const res = await fetch("/api/leads/whatsapp", {
@@ -719,8 +719,15 @@ export default function LeadsClient({
         setWhatsappReply("");
         fetchActivities(lead.id);
         fetchDrafts(lead.id);
+        toast("Reply sent");
       } else {
-        toast(data.error || "Failed to send", "error");
+        if (data.error && (data.error.includes("No active WhatsApp session") || data.error.includes("disconnected"))) {
+          setWaNeedsPairing(true);
+          setWaPairingPhone("");
+          setShowWhatsApp(true);
+        } else {
+          toast(data.error || "Failed to send", "error");
+        }
       }
     } catch { toast("Failed to send", "error"); }
     finally { setSendingWhatsAppReply(false); }
